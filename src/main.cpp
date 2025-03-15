@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include <TM1638plus.h>
 #include <LiquidCrystal_I2C.h>
+#include <RGBLed.h>
+#include <Buzzer.h>
+#include <Whadda.h>
 
 const int STB_PIN = 8;
 const int CLK_PIN = 9;
@@ -12,23 +15,16 @@ const int BUZZER_PIN = 2;
 const int BTN_PIN = 3;
 const int POT_PIN = A0;
 
-int currentRed = 0;
-int currentGreen = 0;
-int currentBlue = 0;
-const int FADE_DELAY = 10;
-
-void fadeColor(int redValue, int greenValue, int blueValue);
-void setColor(int redValue, int greenValue, int blueValue);
-void blink(int count);
-
-TM1638plus tm(STB_PIN, CLK_PIN, DIO_PIN);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+RGBLed rgbLed(RGB_RED, RGB_GREEN, RGB_BLUE);
+Buzzer buzzer(BUZZER_PIN);
+Whadda whadda(STB_PIN, CLK_PIN, DIO_PIN);
 
 void setup()
 {
   Serial.begin(9600);
-  tm.displayBegin();
-  tm.setLEDs(0xFFFF);
+  whadda.displayBegin();
+  whadda.setLEDs(0xFF00);
   lcd.init();
   lcd.backlight();
   pinMode(BTN_PIN, INPUT_PULLUP);
@@ -44,7 +40,8 @@ void loop()
   if (digitalRead(BTN_PIN) == LOW)
   {
     // play a tone
-    tone(BUZZER_PIN, 1000, 500);
+    buzzer.playTone(1000, 500);
+    buzzer.playImperialMarch();
     // display message on LCD
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -64,56 +61,4 @@ void loop()
 
   Serial.print("Pot Value: ");
   Serial.println(mappedValue);
-
-  setColor(mappedValue, 0, 0);
-}
-
-void fadeColor(int targetRed, int targetGreen, int targetBlue)
-{
-  const int steps = 255;
-  for (int i = 0; i <= steps; i++)
-  {
-    int newRed = currentRed + ((targetRed - currentRed) * i) / steps;
-    int newGreen = currentGreen + ((targetGreen - currentGreen) * i) / steps;
-    int newBlue = currentBlue + ((targetBlue - currentBlue) * i) / steps;
-
-    analogWrite(RGB_RED, newRed);
-    analogWrite(RGB_GREEN, newGreen);
-    analogWrite(RGB_BLUE, newBlue);
-    delay(FADE_DELAY);
-  }
-  currentRed = targetRed;
-  currentGreen = targetGreen;
-  currentBlue = targetBlue;
-}
-
-void setColor(int redValue, int greenValue, int blueValue)
-{
-  analogWrite(RGB_RED, redValue);
-  analogWrite(RGB_GREEN, greenValue);
-  analogWrite(RGB_BLUE, blueValue);
-
-  currentRed = redValue;
-  currentGreen = greenValue;
-  currentBlue = blueValue;
-}
-
-void blink(int count)
-{
-  int savedRed = currentRed;
-  int savedGreen = currentGreen;
-  int savedBlue = currentBlue;
-
-  for (int i = 0; i < count; i++)
-  {
-    // Turn off the LED
-    setColor(0, 0, 0);
-
-    delay(150);
-
-    // Restore the LED to its previous color
-    setColor(savedRed, savedGreen, savedBlue);
-
-    delay(150);
-  }
 }
