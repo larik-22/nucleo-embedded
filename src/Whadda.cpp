@@ -143,3 +143,21 @@ void Whadda::clearDisplay()
         tm.display7Seg(i, 0x00);
     }
 }
+
+/**
+ * @brief Blinks the LEDs a specified number of times.
+ *
+ * This function takes a bitmask representing the LEDs to blink, the number of times to blink,
+ * and the delay between blinks. The LEDs are turned on and off in a loop.
+ */
+void Whadda::blinkLEDs(uint16_t num, int count, int blinkDelay)
+{
+    num <<= 8; // shift to red LED region
+    for (int i = 0; i < count; i++)
+    {
+        tm.setLEDs(num);
+        delay(blinkDelay);
+        tm.setLEDs(0x0000);
+        delay(blinkDelay);
+    }
+}

@@ -114,6 +114,11 @@ public:
      */
     void clearDisplay();
 
+    /**
+     * @brief blink whadda LEDs
+     */
+    void blinkLEDs(uint16_t num, int count, int blinkDelay);
+
 private:
     TM1638plus tm;
 };

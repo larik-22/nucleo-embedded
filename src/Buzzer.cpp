@@ -104,6 +104,30 @@ void Buzzer::playLoseMelody(unsigned int repeat)
     }
 }
 
+void Buzzer::playRoundStartMelody(unsigned int repeat)
+{
+    for (unsigned int i = 0; i < repeat; i++)
+    {
+        playTone(440, 200); // A4
+        delay(210);
+
+        playTone(523, 200); // C5
+        delay(210);
+
+        playTone(659, 200); // E5
+        delay(210);
+
+        playTone(784, 200); // G5
+        delay(210);
+
+        playTone(880, 200); // A5
+        delay(210);
+
+        stop();
+        delay(200); // short pause between repetitions
+    }
+}
+
 // *** CREDITS TO CHATGPT FOR THIS MELODY
 // *** IMPERIAL MARCH MELODY
 /**

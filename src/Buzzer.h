@@ -46,6 +46,13 @@ public:
     void playLoseMelody(unsigned int repeat = 1);
 
     /**
+     * @brief Plays a round start melody.
+     *
+     * @param repeat Number of times to repeat the melody.
+     */
+    void playRoundStartMelody(unsigned int repeat = 1);
+
+    /**
      * @brief Plays the Imperial March melody.
      *
      * @param repeat Number of times to repeat the melody.
