@@ -12,6 +12,7 @@
  * with corresponding headers that expose runGameX() functions.
  */
 
+#include <pins.h>
 #include <Arduino.h>
 #include <LiquidCrystal_I2C.h>
 #include "Buzzer.h"
@@ -22,19 +23,6 @@
 #include "game2.h"
 #include "game3.h"
 #include "game4.h"
-
-// -----------------------------------------------------------------------------
-// Pin Definitions
-// -----------------------------------------------------------------------------
-const int STB_PIN = 8;
-const int CLK_PIN = 9;
-const int DIO_PIN = 10;
-const int RGB_RED = 11;
-const int RGB_GREEN = 6;
-const int RGB_BLUE = 5;
-const int BUZZER_PIN = 2;
-const int BTN_PIN = 3;
-const int POT_PIN = A0; // Not used in this example, but reserved
 
 // -----------------------------------------------------------------------------
 // Component Instances
@@ -84,7 +72,6 @@ void setup()
   // Initialize the Buzzer and RGB LED
   buzzer.begin();
   rgbLed.begin();
-  rgbLed.off();
 
   // Prompt user to press button to start
   lcd.setCursor(0, 1);
@@ -186,6 +173,7 @@ void loop()
       {
         // Lock up in "win" state
         // or do fancy blinking, etc.
+        rgbLed.setColor(0, 255, 0); // Set to green for win
         rgbLed.blink(3);
       }
     }
