@@ -138,8 +138,27 @@ public:
      */
     void showTemporaryMessage(const char *msg, int durationMs = MESSAGE_DELAY);
 
+    // Must be called repeatedly in loop() to process non-blocking events.
+    void update();
+
 private:
     TM1638plus tm;
+
+    // Variables for non-blocking blinkLEDs
+    bool blinking = false;
+    uint16_t blinkLedNum = 0;
+    int blinkCountMax = 0;
+    int blinkDelayMs = 0;
+    int blinkLedCount = 0;
+    bool ledState = false;
+    unsigned long lastBlinkTime = 0;
+
+    // Variables for non-blocking temporary message
+    bool temporaryMessageActive = false;
+    unsigned long temporaryMessageStartTime = 0;
+    int temporaryMessageDuration = 0;
+    // For simplicity, assume that msg is stored in flash or otherwise remains valid.
+    const char *temporaryMessage = nullptr;
 };
 
 #endif

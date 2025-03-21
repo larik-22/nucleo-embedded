@@ -13,7 +13,7 @@ extern Whadda whadda;
 
 // Game parameters:
 static const int TOTAL_GATES = 5;                // Number of gates to pass
-static const int STARTING_LIVES = 1;             // Initial lives
+static const int STARTING_LIVES = 3;             // Initial lives
 static const unsigned long GATE_TIME_MS = 10000; // Allowed time per gate
 static const unsigned long IN_RANGE_MS = 2500;   // Must stay in range
 static const unsigned long BEEP_INTERVAL = 250;  // Min gap (ms) between short beeps
@@ -94,31 +94,12 @@ static void setWhaddaLives(int lives)
     }
 }
 
-/**
- * @brief Shows a short "restart" animation/effect when lives drop to zero.
- */
-static void doRestartEffect()
-{
-    whadda.clearDisplay();
-    whadda.displayText("Restarting...");
-    buzzer.playLoseMelody(1);
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Out of lives...");
-
-    // flash all leds
-    whadda.blinkLEDs(0xFF, 5, 100);
-    lcd.clear();
-}
-
 // -----------------------------------------------------------------------------
 // Gate Attempt Logic
 // -----------------------------------------------------------------------------
-
 /**
- * @brief Updates LCD (top row) with the current pot speed and Whadda display as well.
- * @param gateLevel   Current gate number.
- * @param potValue    Smoothed pot reading.
+ * @brief Updates LCD (top row) with the current pot speed and updates Whadda display.
+ *        (You may wish to use fixed‑width strings to avoid leftover characters.)
  */
 static void updateGateDisplays(int gateLevel, int potValue)
 {
@@ -132,10 +113,6 @@ static void updateGateDisplays(int gateLevel, int potValue)
 
 /**
  * @brief Checks if potValue is within [minVel, maxVel], with TOLERANCE.
- * @param potValue Current pot reading.
- * @param minVel   Lower bound of the velocity gate.
- * @param maxVel   Upper bound of the velocity gate.
- * @return True if within the tolerated range, false otherwise.
  */
 static bool isPotInRange(int potValue, int minVel, int maxVel)
 {
@@ -145,171 +122,309 @@ static bool isPotInRange(int potValue, int minVel, int maxVel)
 }
 
 /**
- * @brief Main loop for a single gate attempt. Returns true if user passes
- *        the gate, false if the time runs out.
+ * @brief Non-blocking gate attempt update.
+ *        Call repeatedly until it returns true. When finished, 'gatePassed' holds the result.
  */
-static bool doGateAttempt(int gateLevel)
+bool doGateAttemptUpdate(int gateLevel, bool &gatePassed)
 {
-    // Randomly generate velocity range
-    int minVel = 0, maxVel = 0;
-    generateVelocityRange(gateLevel, minVel, maxVel);
-
-    // Show range info on LCD second line
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Gate ");
-    lcd.print(gateLevel);
-
-    lcd.setCursor(0, 1);
-    lcd.print("Range:");
-    lcd.print(minVel);
-    lcd.print("-");
-    lcd.print(maxVel);
-
-    // Clear Whadda text as well
-    whadda.clearDisplay();
-
-    // Re-init pot filter
-    initPotFilter();
-
-    // Track times
-    unsigned long gateStart = millis();
-    unsigned long inRangeStart = 0;
-    unsigned long lastBeep = 0;
-
-    bool wasOutOfRange = true;
-
-    // Debug info
-    Serial.print("[Gate ");
-    Serial.print(gateLevel);
-    Serial.print("] Range: ");
-    Serial.print(minVel);
-    Serial.print(" - ");
-    Serial.println(maxVel);
-
-    // Loop until success or time-out
-    while (true)
+    enum GateState
     {
-        // Check gate time limit
-        if (millis() - gateStart > GATE_TIME_MS)
+        GA_INIT,
+        GA_LOOP,
+        GA_DONE
+    };
+    static GateState gaState = GA_INIT;
+    static int minVel, maxVel;
+    static unsigned long gateStart, inRangeStart, lastBeep;
+    static bool wasOutOfRange;
+    // Added blink state for LED toggling:
+    static bool blinkState = false;
+
+    unsigned long now = millis();
+
+    switch (gaState)
+    {
+    case GA_INIT:
+        // Initialize a new gate attempt.
+        generateVelocityRange(gateLevel, minVel, maxVel);
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Gate ");
+        lcd.print(gateLevel);
+        lcd.setCursor(0, 1);
+        lcd.print("Range:");
+        lcd.print(minVel);
+        lcd.print("-");
+        lcd.print(maxVel);
+        whadda.clearDisplay();
+        initPotFilter();
+        gateStart = now;
+        inRangeStart = now;
+        lastBeep = now;
+        wasOutOfRange = true;
+        blinkState = false; // initialize blink state
+
+        // DEBUG: print range info
+        Serial.print("[Gate ");
+        Serial.print(gateLevel);
+        Serial.print("] Range: ");
+        Serial.print(minVel);
+        Serial.print(" - ");
+        Serial.println(maxVel);
+        gaState = GA_LOOP;
+        return false; // Not finished yet
+
+    case GA_LOOP:
+    {
+        // Check for time-out.
+        if (now - gateStart > GATE_TIME_MS)
         {
-            return false; // time up -> fail
+            gatePassed = false;
+            gaState = GA_DONE;
+            return true;
         }
-
-        // Read the pot
+        // Read the potentiometer and update displays.
         int potValue = getSmoothedPotValue(gateLevel);
-
-        // Update LCD/Whadda with speed
         updateGateDisplays(gateLevel, potValue);
-
         if (isPotInRange(potValue, minVel, maxVel))
         {
-            // Blink LED green in sync with the short beep
-            unsigned long now = millis();
-            if (now - lastBeep > BEEP_INTERVAL)
+            // Toggle the LED to blink.
+            if (now - lastBeep >= BEEP_INTERVAL)
             {
-                buzzer.playTone(800, 50);
-                rgbLed.setColor(0, 255, 0);
+                blinkState = !blinkState;
+                if (blinkState)
+                {
+                    // LED ON in green and play a short beep.
+                    buzzer.playTone(800, 50);
+                    rgbLed.setColor(0, 255, 0);
+                }
+                else
+                {
+                    // LED OFF.
+                    rgbLed.off();
+                }
                 lastBeep = now;
             }
-
-            // If we were out of range previously, set the inRangeStart
             if (wasOutOfRange)
             {
                 wasOutOfRange = false;
-                inRangeStart = millis();
+                inRangeStart = now;
             }
-
-            // Check if we've been in range for the required period
-            if (millis() - inRangeStart >= IN_RANGE_MS)
+            if (now - inRangeStart >= IN_RANGE_MS)
             {
-                // Gate passed
+                // Successfully maintained in-range for the required time.
+                gatePassed = true;
+                gaState = GA_DONE;
                 return true;
             }
         }
         else
         {
-            // Out of range
+            // Out-of-range condition: show a steady red color.
             rgbLed.setColor(255, 0, 0);
-
-            // If we just exited range, do a short beep
             if (!wasOutOfRange)
             {
                 wasOutOfRange = true;
                 buzzer.playTone(300, 200);
             }
         }
-
-        delay(50);
+        return false;
     }
+
+    case GA_DONE:
+        // Reset state for next gate attempt.
+        gaState = GA_INIT;
+        return true;
+    }
+    return false;
 }
 
 // -----------------------------------------------------------------------------
-// Main Challenge Function
+// Non-Blocking Main Challenge Function
 // -----------------------------------------------------------------------------
 
+/**
+ * @brief Non-blocking game2 state machine.
+ *        Call runGame2() repeatedly until it returns true.
+ *
+ * Changes:
+ *  - Uses millis() for waiting (pausing) to show messages.
+ *  - Uses global flag showTimer to hide the timer when printing full-row messages.
+ *  - Implements a dedicated restart effect state (R2_RESTART_EFFECT) to ensure it plays once.
+ */
 bool runGame2()
 {
-    // Intro
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Escape Velocity!");
-    lcd.setCursor(0, 1);
-    lcd.print("Good luck!");
-    delay(1500);
-
-    // Local state
-    int currentGate = 1;
-    int lives = STARTING_LIVES;
-    setWhaddaLives(lives);
-
-    // Attempt each gate
-    while (currentGate <= TOTAL_GATES)
+    enum GameState
     {
-        bool passed = doGateAttempt(currentGate);
+        R2_INIT,
+        R2_INTRO,
+        R2_WAIT_INTRO,
+        R2_GAME_LOOP,
+        R2_PROCESS_GATE,
+        R2_SUCCESS_BEEP,
+        R2_FAILED_PAUSE, // NEW: Wait a moment after a failure before reattempt.
+        R2_RESTART_EFFECT,
+        R2_RETRY,
+        R2_FINISHED
+    };
 
-        if (passed)
+    static GameState state = R2_INIT;
+    static int currentGate = 1;
+    static int lives = STARTING_LIVES;
+    static unsigned long stateStart = 0;
+    static bool gateResult = false;
+    // NEW: Prevent processing the same gate attempt twice.
+    static bool attemptFinished = false;
+
+    switch (state)
+    {
+    case R2_INIT:
+        // Initialize game state.
+        currentGate = 1;
+        lives = STARTING_LIVES;
+        setWhaddaLives(lives);
+        state = R2_INTRO;
+        break;
+
+    case R2_INTRO:
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        showTimer = false; // hide timer during full message
+        lcd.print("Escape Velocity!");
+        lcd.setCursor(0, 1);
+        lcd.print("Good luck!");
+        stateStart = millis();
+        state = R2_WAIT_INTRO;
+        break;
+
+    case R2_WAIT_INTRO:
+        if (millis() - stateStart >= 1500)
         {
-            // Short success beep sequence
-            buzzer.playTone(1000, 150);
-            delay(150);
-            buzzer.playTone(1200, 150);
-            currentGate++;
+            state = R2_GAME_LOOP;
+            lcd.clear();
+            showTimer = true; // re-enable timer updates
+        }
+        break;
+
+    case R2_GAME_LOOP:
+        if (currentGate <= TOTAL_GATES)
+        {
+            // Only process a new gate attempt if we haven't already processed one.
+            if (!attemptFinished)
+            {
+                if (doGateAttemptUpdate(currentGate, gateResult))
+                {
+                    attemptFinished = true; // Mark this attempt as finished
+                    state = R2_PROCESS_GATE;
+                }
+            }
         }
         else
         {
-            // Gate failed -> lose a life
+            state = R2_FINISHED;
+        }
+        break;
+
+    case R2_PROCESS_GATE:
+        if (gateResult)
+        {
+            // Gate passed – play a short success beep sequence.
+            buzzer.playTone(1000, 150);
+            buzzer.playTone(1200, 150);
+            stateStart = millis();
+            state = R2_SUCCESS_BEEP;
+        }
+        else
+        {
+            // Gate failed – lose a life.
             lives--;
             setWhaddaLives(lives);
-            // Long beep to indicate fail
             buzzer.playTone(200, 500);
-
-            // If no lives left, do restart effect
             if (lives <= 0)
             {
-                doRestartEffect();
-                currentGate = 1;
-                lives = STARTING_LIVES;
-                setWhaddaLives(lives);
-
-                lcd.clear();
-                lcd.setCursor(0, 0);
-                lcd.print("Retrying...");
-                delay(1000);
+                // Out of lives: move to restart effect state.
+                stateStart = millis();
+                state = R2_RESTART_EFFECT;
+            }
+            else
+            {
+                // NEW: Pause briefly before retrying the same gate.
+                stateStart = millis();
+                state = R2_FAILED_PAUSE;
             }
         }
+        break;
+
+    case R2_SUCCESS_BEEP:
+        if (millis() - stateStart >= 300)
+        {
+            currentGate++;
+            attemptFinished = false; // reset for the next gate attempt
+            state = R2_GAME_LOOP;
+        }
+        break;
+
+    case R2_FAILED_PAUSE:
+        // Wait a moment (1000ms) after a failure before reattempting.
+        if (millis() - stateStart >= 1000)
+        {
+            attemptFinished = false; // allow a fresh attempt for this gate
+            state = R2_GAME_LOOP;
+        }
+        break;
+
+    case R2_RESTART_EFFECT:
+    {
+        static bool restartTonePlayed = false;
+        if (millis() - stateStart < 1000)
+        {
+            showTimer = false;
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Out of lives...");
+            if (!restartTonePlayed)
+            {
+                buzzer.playLoseMelody(1);
+                restartTonePlayed = true;
+            }
+        }
+        else if (millis() - stateStart < 1500)
+        {
+            rgbLed.off();
+        }
+        else
+        {
+            // Restart effect finished – reset game state.
+            showTimer = true;
+            currentGate = 1;
+            lives = STARTING_LIVES;
+            setWhaddaLives(lives);
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Retrying...");
+            stateStart = millis();
+            restartTonePlayed = false; // reset for future restarts
+            attemptFinished = false;   // reset attempt flag as well
+            state = R2_RETRY;
+        }
+        break;
     }
 
-    // All gates cleared => success
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Challenge Done!");
+    case R2_RETRY:
+        if (millis() - stateStart >= 1000)
+        {
+            state = R2_GAME_LOOP;
+        }
+        break;
 
-    // Final "win" melody
-    buzzer.playWinMelody();
-    rgbLed.off();
-
-    Serial.println("Game 2 completed!");
-
-    return true;
+    case R2_FINISHED:
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Challenge Done!");
+        buzzer.playWinMelody();
+        rgbLed.off();
+        Serial.println("Game 2 completed!");
+        return true;
+    }
+    return false;
 }

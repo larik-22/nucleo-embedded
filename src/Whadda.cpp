@@ -171,39 +171,85 @@ void Whadda::clearDisplay()
     }
 }
 
-// TODO: RM blocking call
 /**
- * @brief Blinks the LEDs a specified number of times.
+ * @brief Initiates a non-blocking LED blink effect.
  *
- * This function takes a bitmask representing the LEDs to blink, the number of times to blink,
- * and the delay between blinks. The LEDs are turned on and off in a loop.
+ * Instead of blocking with delay(), this function sets state variables so that
+ * subsequent calls to update() will handle turning the LEDs on and off.
+ *
+ * @param num Bitmask representing the LEDs (will be shifted to red region).
+ * @param count Number of blink cycles.
+ * @param blinkDelay Interval (in ms) between toggling the LEDs.
  */
 void Whadda::blinkLEDs(uint16_t num, int count, int blinkDelay)
 {
-    num <<= 8; // shift to red LED region
-    for (int i = 0; i < count; i++)
-    {
-        tm.setLEDs(num);
-        delay(blinkDelay);
-        tm.setLEDs(0x0000);
-        delay(blinkDelay);
-    }
+    blinkLedNum = num << 8; // shift to red LED region
+    blinkCountMax = count;
+    blinkDelayMs = blinkDelay;
+    blinkLedCount = 0;
+    lastBlinkTime = millis();
+    blinking = true;
+    ledState = false; // start with LED off; update() will toggle immediately
 }
 
-// TODO: RM blocking call
 /**
- * @brief Displays a message on the display for a specified duration.
+ * @brief Initiates a non-blocking temporary message display.
  *
- * This function clears the display, shows the message, waits for the specified duration,
- * and then clears the display again.
+ * The message is displayed immediately and remains on-screen for the specified
+ * duration. The update() method will clear the display after the duration expires.
  *
  * @param msg The message to display.
- * @param durationMs The duration in milliseconds to show the message.
+ * @param durationMs Duration (in ms) to display the message.
  */
 void Whadda::showTemporaryMessage(const char *msg, int durationMs)
 {
     clearDisplay();
     displayText(msg);
-    delay(durationMs);
-    clearDisplay();
+    temporaryMessageActive = true;
+    temporaryMessageStartTime = millis();
+    temporaryMessageDuration = durationMs;
+    temporaryMessage = msg; // Assumes msg is stored in a valid location
+}
+
+/**
+ * @brief Processes non-blocking events.
+ *
+ * This method should be called frequently (e.g., inside the main loop) so that
+ * the blink and temporary message operations progress based on elapsed time.
+ */
+void Whadda::update()
+{
+    unsigned long currentMillis = millis();
+
+    // Process blinking LEDs
+    if (blinking)
+    {
+        if (currentMillis - lastBlinkTime >= (unsigned long)blinkDelayMs)
+        {
+            lastBlinkTime = currentMillis;
+            ledState = !ledState;
+            tm.setLEDs(ledState ? blinkLedNum : 0x0000);
+
+            // Count a blink cycle when turning the LED on
+            if (ledState)
+            {
+                blinkLedCount++;
+                if (blinkLedCount >= blinkCountMax)
+                {
+                    blinking = false;
+                    tm.setLEDs(0x0000); // Ensure LEDs are turned off
+                }
+            }
+        }
+    }
+
+    // Process temporary message
+    if (temporaryMessageActive)
+    {
+        if (currentMillis - temporaryMessageStartTime >= (unsigned long)temporaryMessageDuration)
+        {
+            clearDisplay();
+            temporaryMessageActive = false;
+        }
+    }
 }

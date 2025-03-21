@@ -35,6 +35,7 @@ Whadda whadda(STB_PIN, CLK_PIN, DIO_PIN);
 // -----------------------------------------------------------------------------
 // Global Variables for Game State
 // -----------------------------------------------------------------------------
+bool showTimer = true;
 bool gameStarted = false;
 bool allChallengesComplete = false;
 unsigned long gameStartTime = 0;
@@ -76,7 +77,6 @@ void setup()
   // Prompt user to press button to start
   lcd.setCursor(0, 1);
   lcd.print("Press start btn");
-  rgbLed.startBlinkColor(255, 0, 0, 3); // Blink red to indicate waiting state
 }
 
 // -----------------------------------------------------------------------------
@@ -85,24 +85,36 @@ void setup()
 void loop()
 {
   rgbLed.update();
+  whadda.update();
+
   if (!gameStarted)
   {
-    // TODO: Button component with debouncing logic
-    // Wait until user presses button (active LOW)
+    // Use a static variable to track button press start time.
+    static unsigned long btnPressStart = 0;
+
+    // Check if button is pressed (active LOW)
     if (digitalRead(BTN_PIN) == LOW)
     {
-      // Debounce or short delay if desired
-      delay(100);
-      if (digitalRead(BTN_PIN) == LOW)
+      // Start counting the press duration if not already started.
+      if (btnPressStart == 0)
       {
-        // Start the game
+        btnPressStart = millis();
+      }
+      // If the button has been pressed for over 100 ms, consider it a valid press.
+      else if (millis() - btnPressStart > 100)
+      {
         gameStarted = true;
         gameStartTime = millis(); // Timestamp game start
         lcd.clear();
+        showTimer = false;
         lcd.print("Game Started!");
-        delay(1000);
-        lcd.clear();
+        btnPressStart = 0; // Reset for next time
       }
+    }
+    else
+    {
+      // Reset if button is not pressed.
+      btnPressStart = 0;
     }
   }
   else
@@ -116,6 +128,7 @@ void loop()
       // Time up => losing condition
       buzzer.playLoseMelody();
       lcd.clear();
+      showTimer = false;
       lcd.print("Game Over!");
       while (1)
       {
@@ -126,15 +139,22 @@ void loop()
 
     // Sequentially run challenges if not yet complete
     static int currentChallenge = 1;
+    bool challengeFinished = false;
 
     switch (currentChallenge)
     {
     case 1:
-      if (runGame2())
+      // Use the non-blocking update version of Game 2.
+      challengeFinished = runGame2();
+
+      rgbLed.update();
+      whadda.update();
+
+      if (challengeFinished)
       {
         currentChallenge++;
-        // Provide short transition
         lcd.clear();
+        // showTimer = false;
         lcd.print("Game 2 start");
       }
       break;
@@ -188,39 +208,22 @@ void loop()
 // Helper Functions
 // -----------------------------------------------------------------------------
 
-/**
- *  updateTimerOnLCD()
- *  - Calculates remaining time and prints it on the second row of the LCD.
- *  - Restores the LCD cursor after challenge messages if needed.
- */
 void updateTimerOnLCD()
 {
-  unsigned long elapsed = millis() - gameStartTime;
-  unsigned long remaining = 0;
+  if (!showTimer)
+    return; // Do nothing if the timer is temporarily hidden
 
-  if (elapsed < GAME_DURATION)
-  {
-    remaining = GAME_DURATION - elapsed;
-  }
-  else
-  {
-    remaining = 0;
-  }
+  unsigned long elapsed = millis() - gameStartTime;
+  unsigned long remaining = (elapsed < GAME_DURATION) ? (GAME_DURATION - elapsed) : 0;
 
   // Convert to MM:SS
   unsigned int seconds = (remaining / 1000UL) % 60;
   unsigned int minutes = (remaining / 1000UL) / 60;
 
-  // Position the timer on the LCD. Adjust cursor as you prefer.
-  lcd.setCursor(0, 1);
-  lcd.print("Time: ");
-  if (minutes < 10)
-    lcd.print("0");
-  lcd.print(minutes);
-  lcd.print(":");
-  if (seconds < 10)
-    lcd.print("0");
-  lcd.print(seconds);
+  lcd.setCursor(11, 0);
+  char timerStr[6]; // Fixed width, 5 characters plus null terminator
+  snprintf(timerStr, sizeof(timerStr), "%02u:%02u", minutes, seconds);
+  lcd.print(timerStr);
 }
 
 /**
