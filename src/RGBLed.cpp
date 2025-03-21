@@ -136,3 +136,53 @@ void RGBLed::blinkColor(int redValue, int greenValue, int blueValue, int count)
         delay(BLINK_DELAY);
     }
 }
+
+// Initiates a blink sequence using the current LED color.
+void RGBLed::startBlinkCurrent(int count)
+{
+    startBlinkColor(_currentRed, _currentGreen, _currentBlue, count);
+}
+
+// Initiates a blink sequence with a specific color.
+// 'count' indicates the number of full blink cycles.
+void RGBLed::startBlinkColor(int redValue, int greenValue, int blueValue, int count)
+{
+    _isBlinking = true;
+    // For count blink cycles, we need count*2 transitions (LED off and on)
+    _blinkCount = count * 2;
+    _blinkState = true; // Start with LED on
+    _lastBlinkTime = millis();
+    _blinkRed = redValue;
+    _blinkGreen = greenValue;
+    _blinkBlue = blueValue;
+    setColor(redValue, greenValue, blueValue);
+}
+
+// Call this method in loop() to update the blinking state.
+void RGBLed::update()
+{
+    if (_isBlinking)
+    {
+        unsigned long currentMillis = millis();
+        if (currentMillis - _lastBlinkTime >= BLINK_DELAY)
+        {
+            _lastBlinkTime = currentMillis;
+            if (_blinkState)
+            {
+                off();
+            }
+            else
+            {
+                setColor(_blinkRed, _blinkGreen, _blinkBlue);
+            }
+            _blinkState = !_blinkState;
+            _blinkCount--;
+            if (_blinkCount <= 0)
+            {
+                _isBlinking = false;
+                // Optionally, leave the LED on after finishing:
+                setColor(_blinkRed, _blinkGreen, _blinkBlue);
+            }
+        }
+    }
+}

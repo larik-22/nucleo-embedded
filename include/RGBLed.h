@@ -82,7 +82,20 @@ public:
      */
     void blinkColor(int redValue, int greenValue, int blueValue, int count = 1);
 
+    // Non-blocking blink routines:
+    // Call one of these to start a blink sequence.
+    void startBlinkCurrent(int count);
+    void startBlinkColor(int redValue, int greenValue, int blueValue, int count = 1);
+    // Call update() repeatedly (e.g. in loop()) to process blink transitions.
+    void update();
+
 private:
     int _redPin, _greenPin, _bluePin;
     int _currentRed, _currentGreen, _currentBlue;
+
+    bool _isBlinking;
+    int _blinkCount;  // Remaining transitions (on/off)
+    bool _blinkState; // Current state: true means LED is on, false means off
+    unsigned long _lastBlinkTime;
+    int _blinkRed, _blinkGreen, _blinkBlue;
 };

@@ -76,8 +76,7 @@ void setup()
   // Prompt user to press button to start
   lcd.setCursor(0, 1);
   lcd.print("Press start btn");
-  rgbLed.setColor(0, 0, 255);
-  // buzzer.playImperialMarch();
+  rgbLed.startBlinkColor(255, 0, 0, 3); // Blink red to indicate waiting state
 }
 
 // -----------------------------------------------------------------------------
@@ -85,8 +84,10 @@ void setup()
 // -----------------------------------------------------------------------------
 void loop()
 {
+  rgbLed.update();
   if (!gameStarted)
   {
+    // TODO: Button component with debouncing logic
     // Wait until user presses button (active LOW)
     if (digitalRead(BTN_PIN) == LOW)
     {

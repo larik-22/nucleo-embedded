@@ -12,8 +12,8 @@ extern Buzzer buzzer;
 extern Whadda whadda;
 
 // Game parameters:
-static const int TOTAL_GATES = 4;                // Number of gates to pass
-static const int STARTING_LIVES = 3;             // Initial lives
+static const int TOTAL_GATES = 5;                // Number of gates to pass
+static const int STARTING_LIVES = 1;             // Initial lives
 static const unsigned long GATE_TIME_MS = 10000; // Allowed time per gate
 static const unsigned long IN_RANGE_MS = 2500;   // Must stay in range
 static const unsigned long BEEP_INTERVAL = 250;  // Min gap (ms) between short beeps
@@ -99,30 +99,16 @@ static void setWhaddaLives(int lives)
  */
 static void doRestartEffect()
 {
+    whadda.clearDisplay();
+    whadda.displayText("Restarting...");
+    buzzer.playLoseMelody(1);
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Out of lives...");
 
-    // Small repeated tone
-    for (int i = 0; i < 3; i++)
-    {
-        buzzer.playTone(200, 300);
-        delay(300);
-    }
-
-    // Flash all Whadda LEDs
-    for (int i = 0; i < 8; i++)
-    {
-        whadda.setLED(i, true);
-    }
-    delay(800);
-    for (int i = 0; i < 8; i++)
-    {
-        whadda.setLED(i, false);
-    }
-
+    // flash all leds
+    whadda.blinkLEDs(0xFF, 5, 100);
     lcd.clear();
-    delay(500);
 }
 
 // -----------------------------------------------------------------------------
@@ -139,13 +125,8 @@ static void updateGateDisplays(int gateLevel, int potValue)
     lcd.setCursor(0, 0);
     lcd.print("Gate ");
     lcd.print(gateLevel);
-
-    // Overwrite from index 8 onward
-    lcd.setCursor(8, 0);
     char buff[8];
     sprintf(buff, "Spd %4d", potValue);
-
-    // Whadda can also display the same text
     whadda.displayText(buff);
 }
 
@@ -228,7 +209,7 @@ static bool doGateAttempt(int gateLevel)
             if (now - lastBeep > BEEP_INTERVAL)
             {
                 buzzer.playTone(800, 50);
-                rgbLed.blinkColor(0, 255, 0);
+                rgbLed.setColor(0, 255, 0);
                 lastBeep = now;
             }
 
@@ -255,7 +236,7 @@ static bool doGateAttempt(int gateLevel)
             if (!wasOutOfRange)
             {
                 wasOutOfRange = true;
-                buzzer.playTone(300, 100);
+                buzzer.playTone(300, 200);
             }
         }
 

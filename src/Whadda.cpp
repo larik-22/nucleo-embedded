@@ -171,6 +171,7 @@ void Whadda::clearDisplay()
     }
 }
 
+// TODO: RM blocking call
 /**
  * @brief Blinks the LEDs a specified number of times.
  *
@@ -189,6 +190,7 @@ void Whadda::blinkLEDs(uint16_t num, int count, int blinkDelay)
     }
 }
 
+// TODO: RM blocking call
 /**
  * @brief Displays a message on the display for a specified duration.
  *
