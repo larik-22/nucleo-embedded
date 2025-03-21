@@ -21,6 +21,7 @@ extern Whadda whadda;
 static const int MAX_LEVEL = 8;               // How many rounds to complete
 static const int INITIAL_SEQUENCE_LENGTH = 2; // Sequence length at early levels
 static const int MAX_SEQUENCE_SIZE = 32;      // Safety for storing generated data
+static const int BASE_DELAY = 500;            // Base delay for round transitions
 
 // Frequency table for each LED (0..7)
 static const int ledFrequencies[8] = {220, 262, 294, 330, 349, 392, 440, 494};
@@ -62,7 +63,6 @@ static void nextLevel();
 static void finishGame();
 static int getSequenceLengthForLevel(int lvl);
 static void updateDisplay();
-static void showTemporaryMessage(const char *msg, int durationMs);
 static int getRoundDelay(int lvl);
 
 // ---------------------------------------------------------------------------
@@ -279,14 +279,14 @@ static void checkUserInput()
             {
                 // Wrong guess: Signal error and replay the sequence.
                 buzzer.playTone(300, 700);
-                showTemporaryMessage("ERR", 1000);
+                whadda.showTemporaryMessage("ERROR!", 1000);
                 updateDisplay();
 
                 // Restart sequence playback.
                 userIndex = 0;
                 currentState = DISPLAY_SEQUENCE;
             }
-            break; // Process only one button press per loop iteration.
+            break;
         }
     }
 }
@@ -368,26 +368,14 @@ static void updateDisplay()
 }
 
 /**
- * @brief Display a short text, wait, then clear.
- */
-static void showTemporaryMessage(const char *msg, int durationMs)
-{
-    whadda.clearDisplay();
-    whadda.displayText(msg);
-    delay(durationMs);
-    whadda.clearDisplay();
-}
-
-/**
- * @b    whadda.display7Seg(dotCount); Returns a decreasing delay as level increases (never < 200ms).
+ * Returns a decreasing delay as level increases (never < 200ms).
  *
  * Used to create shorter pauses between levels at higher difficulty.
  */
 static int getRoundDelay(int lvl)
 {
-    int baseDelay = 500;             // e.g., 500ms at level 1
-    int decrement = 100 * (lvl - 1); // ~100ms less each level
-    int result = baseDelay - decrement;
+    int decrement = 100 * (lvl - 1);
+    int result = BASE_DELAY - decrement;
     if (result < 200)
     {
         result = 200;

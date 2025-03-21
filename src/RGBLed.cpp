@@ -103,7 +103,7 @@ void RGBLed::fadeToOff(int delayMs)
  *
  * @param count The number of blink cycles to perform.
  */
-void RGBLed::blink(int count)
+void RGBLed::blinkCurrentColor(int count)
 {
     int savedRed = _currentRed;
     int savedGreen = _currentGreen;
@@ -114,6 +114,25 @@ void RGBLed::blink(int count)
         off();
         delay(BLINK_DELAY);
         setColor(savedRed, savedGreen, savedBlue);
+        delay(BLINK_DELAY);
+    }
+}
+
+/**
+ * @brief Blinks the LED with the specified color a given number of times.
+ *
+ * @param redValue   The intensity of the red channel (0-255).
+ * @param greenValue The intensity of the green channel (0-255).
+ * @param blueValue  The intensity of the blue channel (0-255).
+ * @param count      The number of blink cycles to perform.
+ */
+void RGBLed::blinkColor(int redValue, int greenValue, int blueValue, int count)
+{
+    for (int i = 0; i < count; i++)
+    {
+        off();
+        delay(BLINK_DELAY);
+        setColor(redValue, greenValue, blueValue);
         delay(BLINK_DELAY);
     }
 }

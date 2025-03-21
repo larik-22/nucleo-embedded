@@ -76,6 +76,7 @@ void setup()
   // Prompt user to press button to start
   lcd.setCursor(0, 1);
   lcd.print("Press start btn");
+  rgbLed.setColor(0, 0, 255);
   // buzzer.playImperialMarch();
 }
 
@@ -176,7 +177,7 @@ void loop()
         // Lock up in "win" state
         // or do fancy blinking, etc.
         rgbLed.setColor(0, 255, 0); // Set to green for win
-        rgbLed.blink(3);
+        rgbLed.blinkCurrentColor(3);
       }
     }
   }

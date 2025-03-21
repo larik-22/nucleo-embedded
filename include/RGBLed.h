@@ -70,7 +70,17 @@ public:
      *
      * @param count The number of times to blink the LED.
      */
-    void blink(int count);
+    void blinkCurrentColor(int count);
+
+    /**
+     * @brief Blinks the LED with the specified color a given number of times.
+     *
+     * @param redValue   Intensity of the red channel (0-255).
+     * @param greenValue Intensity of the green channel (0-255).
+     * @param blueValue  Intensity of the blue channel (0-255).
+     * @param count      The number of times to blink the LED.
+     */
+    void blinkColor(int redValue, int greenValue, int blueValue, int count = 1);
 
 private:
     int _redPin, _greenPin, _bluePin;

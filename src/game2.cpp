@@ -11,81 +11,78 @@ extern RGBLed rgbLed;
 extern Buzzer buzzer;
 extern Whadda whadda;
 
-// /**
-//  * @brief Function to run the second game.
-//  * @return true if the game is completed.
-//  */
-// bool runGame2()
-// {
-//     // 1. Initialize the game
-//     // 2. Start rounds (5 rounds)
-//     // 3. Code to check current potentiometer value
-//     // 4. Generate gate with threshold for each level
-//     // 5. Show required value on LCD
-//     // 6. Show current value on Whadda
-//     // 7. Show time left to complete round
-//     // 8. 3 leds on whadda – 3 lives
-//     // 9. If not completed in time, decrease a live with a cool effect and give 5sec to find range until decreasing next live
-//     // 10. If completed, show something on lcd and return true
-// }
+// Game parameters:
+static const int TOTAL_GATES = 4;                // Number of gates to pass
+static const int STARTING_LIVES = 3;             // Initial lives
+static const unsigned long GATE_TIME_MS = 10000; // Allowed time per gate
+static const unsigned long IN_RANGE_MS = 2500;   // Must stay in range
+static const unsigned long BEEP_INTERVAL = 250;  // Min gap (ms) between short beeps
+static const float ALPHA = 0.1f;                 // Exponential smoothing factor
+static const int TOLERANCE = 5;                  // Threshold to reduce flicker issues
 
-// Gameplay parameters
-static const int TOTAL_GATES = 3;
-static const int STARTING_LIVES = 3;
-static const unsigned long GATE_TIME_LIMIT_MS = 10000;  // 10 seconds
-static const unsigned long REQUIRED_IN_RANGE_MS = 3000; // 3 seconds
-static const unsigned long BEEP_INTERVAL_MS = 500;      // beep gap
-static const float ALPHA = 0.1f;                        // smoothing factor
-static const int tolerance = 5;                         // hysteresis around range
+// Internal filter state for smoothing pot readings:
+// Credits: https://www.arduino.cc/en/Tutorial/BuiltInExamples/AnalogReadSerial
+// Credits: [exponential smoothing] https://en.wikipedia.org/wiki/Exponential_smoothing
+// And of course huge credits to gpt...
+static float g_potFilter = 0.0f;
 
-static float potFilter = 0.0f;
-static void initializePotFilter()
+// -----------------------------------------------------------------------------
+// Potentiometer & Range Utilities
+// -----------------------------------------------------------------------------
+
+/**
+ * @brief Initialize the exponential filter with the current raw pot value.
+ */
+static void initPotFilter()
 {
-    // Initialize with a direct read to avoid large transitional jump
-    potFilter = (float)analogRead(POT_PIN);
+    g_potFilter = (float)analogRead(POT_PIN);
 }
 
 /**
- * Returns a smoothed pot value scaled by the current gate level.
- * By multiplying by gateLevel, the maximum reading (and thus difficulty)
- * increases with each successive gate.
+ * @brief Reads the pot, applies exponential smoothing, and scales by gateLevel.
+ * @param gateLevel The current gate/level (multiplier).
+ * @return The scaled, smoothed pot value.
  */
 static int getSmoothedPotValue(int gateLevel)
 {
-    // Read raw pot
     int raw = analogRead(POT_PIN);
-
     // Exponential smoothing
-    potFilter = (1.0f - ALPHA) * potFilter + ALPHA * (float)raw;
-
-    // Scale up with gateLevel
-    int scaledValue = (int)(potFilter * gateLevel);
-
-    return scaledValue;
+    g_potFilter = (1.0f - ALPHA) * g_potFilter + ALPHA * (float)raw;
+    // Scale by gateLevel
+    return (int)(g_potFilter * gateLevel);
 }
 
-// -----------------------------------------------------------------------------
-// Range generation, lives handling, animations, etc.
-// -----------------------------------------------------------------------------
+/**
+ * @brief Generates a random velocity range for a given gateLevel.
+ *        The center is in [50, maxPossible - 50] with a ~30 half-range.
+ */
 static void generateVelocityRange(int gateLevel, int &minVel, int &maxVel)
 {
     long maxPossible = 1023L * gateLevel;
     if (maxPossible < 100)
-        maxPossible = 100; // safety net
+    {
+        maxPossible = 100;
+    }
 
-    // random() in [50, maxPossible - 50] to pick a center
     long center = random(50, maxPossible - 50);
-    int halfRange = 30; // narrower or widen to tweak difficulty
+    const int halfRange = 30;
 
     minVel = center - halfRange;
     maxVel = center + halfRange;
-
     if (minVel < 0)
+    {
         minVel = 0;
-    // It's okay if maxVel goes beyond the real pot reading range for extra challenge
+    }
 }
 
-static void updateLivesOnWhadda(int lives)
+// -----------------------------------------------------------------------------
+// Lives & Restart Effects
+// -----------------------------------------------------------------------------
+
+/**
+ * @brief Displays current lives on Whadda's first 3 LEDs.
+ */
+static void setWhaddaLives(int lives)
 {
     for (int i = 0; i < 8; i++)
     {
@@ -97,20 +94,23 @@ static void updateLivesOnWhadda(int lives)
     }
 }
 
+/**
+ * @brief Shows a short "restart" animation/effect when lives drop to zero.
+ */
 static void doRestartEffect()
 {
-    // Display "Out of lives" on LCD
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Out of lives...");
 
-    // A short buzzer effect
+    // Small repeated tone
     for (int i = 0; i < 3; i++)
     {
         buzzer.playTone(200, 300);
         delay(300);
     }
-    // Maybe flash all Whadda LEDs
+
+    // Flash all Whadda LEDs
     for (int i = 0; i < 8; i++)
     {
         whadda.setLED(i, true);
@@ -121,92 +121,126 @@ static void doRestartEffect()
         whadda.setLED(i, false);
     }
 
-    // Clear LCD for next run
     lcd.clear();
     delay(500);
 }
 
+// -----------------------------------------------------------------------------
+// Gate Attempt Logic
+// -----------------------------------------------------------------------------
+
 /**
- * Attempt to pass a single gate. Return true if passed, false if time runs out.
+ * @brief Updates LCD (top row) with the current pot speed and Whadda display as well.
+ * @param gateLevel   Current gate number.
+ * @param potValue    Smoothed pot reading.
  */
-static bool attemptGate(int gateNumber)
+static void updateGateDisplays(int gateLevel, int potValue)
 {
-    // Generate the target range
-    int minVel, maxVel;
-    generateVelocityRange(gateNumber, minVel, maxVel);
+    lcd.setCursor(0, 0);
+    lcd.print("Gate ");
+    lcd.print(gateLevel);
 
-    whadda.clearDisplay();
+    // Overwrite from index 8 onward
+    lcd.setCursor(8, 0);
+    char buff[8];
+    sprintf(buff, "Spd %4d", potValue);
 
-    // Setup the LCD
+    // Whadda can also display the same text
+    whadda.displayText(buff);
+}
+
+/**
+ * @brief Checks if potValue is within [minVel, maxVel], with TOLERANCE.
+ * @param potValue Current pot reading.
+ * @param minVel   Lower bound of the velocity gate.
+ * @param maxVel   Upper bound of the velocity gate.
+ * @return True if within the tolerated range, false otherwise.
+ */
+static bool isPotInRange(int potValue, int minVel, int maxVel)
+{
+    int minCheck = minVel - TOLERANCE;
+    int maxCheck = maxVel + TOLERANCE;
+    return (potValue >= minCheck && potValue <= maxCheck);
+}
+
+/**
+ * @brief Main loop for a single gate attempt. Returns true if user passes
+ *        the gate, false if the time runs out.
+ */
+static bool doGateAttempt(int gateLevel)
+{
+    // Randomly generate velocity range
+    int minVel = 0, maxVel = 0;
+    generateVelocityRange(gateLevel, minVel, maxVel);
+
+    // Show range info on LCD second line
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Gate ");
-    lcd.print(gateNumber);
+    lcd.print(gateLevel);
 
-    // Second line: Show the range
     lcd.setCursor(0, 1);
     lcd.print("Range:");
     lcd.print(minVel);
     lcd.print("-");
     lcd.print(maxVel);
 
-    // Keep track of time
-    unsigned long gateStartTime = millis();
-    unsigned long inRangeStartTime = 0;
+    // Clear Whadda text as well
+    whadda.clearDisplay();
+
+    // Re-init pot filter
+    initPotFilter();
+
+    // Track times
+    unsigned long gateStart = millis();
+    unsigned long inRangeStart = 0;
+    unsigned long lastBeep = 0;
+
     bool wasOutOfRange = true;
-    unsigned long lastBeepTime = 0;
 
-    // For each new gate, re-initialize pot filter
-    initializePotFilter();
-
-    Serial.print("Gate ");
-    Serial.print(gateNumber);
-    Serial.print(" - Range: ");
+    // Debug info
+    Serial.print("[Gate ");
+    Serial.print(gateLevel);
+    Serial.print("] Range: ");
     Serial.print(minVel);
     Serial.print(" - ");
     Serial.println(maxVel);
 
-    // Gameplay loop for this gate
+    // Loop until success or time-out
     while (true)
     {
-        // Check if gate time is over
-        if (millis() - gateStartTime > GATE_TIME_LIMIT_MS)
+        // Check gate time limit
+        if (millis() - gateStart > GATE_TIME_MS)
         {
-            return false; // gate failed
+            return false; // time up -> fail
         }
 
-        // Get the smoothed pot reading (scaled)
-        int potValue = getSmoothedPotValue(gateNumber);
+        // Read the pot
+        int potValue = getSmoothedPotValue(gateLevel);
 
-        // Update LCD line 0 with the current speed (right side)
-        lcd.setCursor(8, 0);
-        // e.g. "Spd:####"
-        char buff[8];
-        sprintf(buff, "Spd:%4d", potValue);
-        whadda.displayText(buff);
+        // Update LCD/Whadda with speed
+        updateGateDisplays(gateLevel, potValue);
 
-        // For stability, we add a small "tolerance" on either side of the range
-        int minCheck = minVel - tolerance;
-        int maxCheck = maxVel + tolerance;
-
-        if (potValue >= minCheck && potValue <= maxCheck)
+        if (isPotInRange(potValue, minVel, maxVel))
         {
-            // Possibly beep if enough time elapsed
-            if (millis() - lastBeepTime >= BEEP_INTERVAL_MS)
+            // Blink LED green in sync with the short beep
+            unsigned long now = millis();
+            if (now - lastBeep > BEEP_INTERVAL)
             {
                 buzzer.playTone(800, 50);
-                lastBeepTime = millis();
+                rgbLed.blinkColor(0, 255, 0);
+                lastBeep = now;
             }
 
+            // If we were out of range previously, set the inRangeStart
             if (wasOutOfRange)
             {
-                // Just entered range
-                inRangeStartTime = millis();
                 wasOutOfRange = false;
+                inRangeStart = millis();
             }
 
-            // Check how long we have been continuously in range
-            if (millis() - inRangeStartTime >= REQUIRED_IN_RANGE_MS)
+            // Check if we've been in range for the required period
+            if (millis() - inRangeStart >= IN_RANGE_MS)
             {
                 // Gate passed
                 return true;
@@ -215,12 +249,14 @@ static bool attemptGate(int gateNumber)
         else
         {
             // Out of range
+            rgbLed.setColor(255, 0, 0);
+
+            // If we just exited range, do a short beep
             if (!wasOutOfRange)
             {
-                // Optional: beep to note the moment we go out of range
+                wasOutOfRange = true;
                 buzzer.playTone(300, 100);
             }
-            wasOutOfRange = true;
         }
 
         delay(50);
@@ -228,15 +264,12 @@ static bool attemptGate(int gateNumber)
 }
 
 // -----------------------------------------------------------------------------
-// Main challenge function
+// Main Challenge Function
 // -----------------------------------------------------------------------------
+
 bool runGame2()
 {
-    // Setup local state
-    int currentGate = 1;
-    int lives = STARTING_LIVES;
-
-    // Greet the user
+    // Intro
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Escape Velocity!");
@@ -244,40 +277,39 @@ bool runGame2()
     lcd.print("Good luck!");
     delay(1500);
 
-    // Initialize Whadda lives
-    updateLivesOnWhadda(lives);
+    // Local state
+    int currentGate = 1;
+    int lives = STARTING_LIVES;
+    setWhaddaLives(lives);
 
-    // Attempt to complete all gates
+    // Attempt each gate
     while (currentGate <= TOTAL_GATES)
     {
-        bool success = attemptGate(currentGate);
-        if (success)
+        bool passed = doGateAttempt(currentGate);
+
+        if (passed)
         {
-            // Short beep to celebrate
+            // Short success beep sequence
             buzzer.playTone(1000, 150);
             delay(150);
             buzzer.playTone(1200, 150);
-
-            // Move on
             currentGate++;
         }
         else
         {
-            // Fail => lose a life
+            // Gate failed -> lose a life
             lives--;
-            updateLivesOnWhadda(lives);
+            setWhaddaLives(lives);
+            // Long beep to indicate fail
+            buzzer.playTone(200, 500);
 
-            buzzer.playTone(200, 500); // Long beep
-
-            // If out of lives, do a restart effect
+            // If no lives left, do restart effect
             if (lives <= 0)
             {
                 doRestartEffect();
-
-                // Restart the challenge
                 currentGate = 1;
                 lives = STARTING_LIVES;
-                updateLivesOnWhadda(lives);
+                setWhaddaLives(lives);
 
                 lcd.clear();
                 lcd.setCursor(0, 0);
@@ -291,13 +323,12 @@ bool runGame2()
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Challenge Done!");
-    // Victory beep pattern
-    buzzer.playTone(1500, 300);
-    delay(200);
-    buzzer.playTone(1800, 300);
-    delay(200);
 
-    // Return true so main game knows the challenge is finished
+    // Final "win" melody
+    buzzer.playWinMelody();
+    rgbLed.off();
+
     Serial.println("Game 2 completed!");
+
     return true;
 }

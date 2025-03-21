@@ -1,6 +1,13 @@
 #ifndef WHADDA_H
 #define WHADDA_H
 
+// BASE parameters
+#define MESSAGE_DELAY 250 // Delay for showing messages
+#define DEBOUNCE_DELAY 50 // Delay for button debounce
+#define BLINK_DELAY 150   // Delay for blinking LEDs
+#define BLINK_COUNT 3     // Number of blinks for LED effects
+#define BLINK_ALL 0xFF    // Bitmask to blink all LEDs
+
 #include "TM1638plus.h"
 
 /**
@@ -112,7 +119,7 @@ public:
      *
      * @return uint8_t A bit mask representing button states.
      */
-    uint8_t readButtonsWithDebounce(int debounceDelay = 50);
+    uint8_t readButtonsWithDebounce(int debounceDelay = DEBOUNCE_DELAY);
 
     /**
      * @brief Clears the 7-segment display.
@@ -125,6 +132,11 @@ public:
      * @brief blink whadda LEDs
      */
     void blinkLEDs(uint16_t num, int count, int blinkDelay);
+
+    /**
+     * @brief shows a message on the display for a specified duration.
+     */
+    void showTemporaryMessage(const char *msg, int durationMs = MESSAGE_DELAY);
 
 private:
     TM1638plus tm;

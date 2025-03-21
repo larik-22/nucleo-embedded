@@ -188,3 +188,20 @@ void Whadda::blinkLEDs(uint16_t num, int count, int blinkDelay)
         delay(blinkDelay);
     }
 }
+
+/**
+ * @brief Displays a message on the display for a specified duration.
+ *
+ * This function clears the display, shows the message, waits for the specified duration,
+ * and then clears the display again.
+ *
+ * @param msg The message to display.
+ * @param durationMs The duration in milliseconds to show the message.
+ */
+void Whadda::showTemporaryMessage(const char *msg, int durationMs)
+{
+    clearDisplay();
+    displayText(msg);
+    delay(durationMs);
+    clearDisplay();
+}
