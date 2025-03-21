@@ -6,10 +6,6 @@
  *  - Countdown timer (10 minutes)
  *  - Sequential challenges
  *  - Win/Lose condition
- *
- * Assumes you have the following additional files:
- *  game1.cpp, game2.cpp, game3.cpp, game4.cpp
- * with corresponding headers that expose runGameX() functions.
  */
 
 #include <pins.h>
@@ -18,7 +14,6 @@
 #include "Buzzer.h"
 #include "RGBLed.h"
 #include "Whadda.h"
-
 #include "game1.h"
 #include "game2.h"
 #include "game3.h"
