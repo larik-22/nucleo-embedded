@@ -131,7 +131,6 @@ bool doGateAttemptUpdate(int gateLevel, bool &gatePassed)
     {
         GA_INIT,
         GA_LOOP,
-        GA_DONE
     };
     static GateState gaState = GA_INIT;
     static int minVel, maxVel;
@@ -162,7 +161,7 @@ bool doGateAttemptUpdate(int gateLevel, bool &gatePassed)
         inRangeStart = now;
         lastBeep = now;
         wasOutOfRange = true;
-        blinkState = false; // initialize blink state
+        blinkState = false;
 
         // DEBUG: print range info
         Serial.print("[Gate ");
@@ -180,7 +179,7 @@ bool doGateAttemptUpdate(int gateLevel, bool &gatePassed)
         if (now - gateStart > GATE_TIME_MS)
         {
             gatePassed = false;
-            gaState = GA_DONE;
+            gaState = GA_INIT;
             return true;
         }
         // Read the potentiometer and update displays.
@@ -214,7 +213,7 @@ bool doGateAttemptUpdate(int gateLevel, bool &gatePassed)
             {
                 // Successfully maintained in-range for the required time.
                 gatePassed = true;
-                gaState = GA_DONE;
+                gaState = GA_INIT;
                 return true;
             }
         }
@@ -230,11 +229,6 @@ bool doGateAttemptUpdate(int gateLevel, bool &gatePassed)
         }
         return false;
     }
-
-    case GA_DONE:
-        // Reset state for next gate attempt.
-        gaState = GA_INIT;
-        return true;
     }
     return false;
 }
@@ -262,7 +256,7 @@ bool runGame2()
         R2_GAME_LOOP,
         R2_PROCESS_GATE,
         R2_SUCCESS_BEEP,
-        R2_FAILED_PAUSE, // NEW: Wait a moment after a failure before reattempt.
+        R2_FAILED_PAUSE,
         R2_RESTART_EFFECT,
         R2_RETRY,
         R2_FINISHED
@@ -273,8 +267,6 @@ bool runGame2()
     static int lives = STARTING_LIVES;
     static unsigned long stateStart = 0;
     static bool gateResult = false;
-    // NEW: Prevent processing the same gate attempt twice.
-    static bool attemptFinished = false;
 
     switch (state)
     {
@@ -309,14 +301,10 @@ bool runGame2()
     case R2_GAME_LOOP:
         if (currentGate <= TOTAL_GATES)
         {
-            // Only process a new gate attempt if we haven't already processed one.
-            if (!attemptFinished)
+            // Process the current gate attempt non-blockingly.
+            if (doGateAttemptUpdate(currentGate, gateResult))
             {
-                if (doGateAttemptUpdate(currentGate, gateResult))
-                {
-                    attemptFinished = true; // Mark this attempt as finished
-                    state = R2_PROCESS_GATE;
-                }
+                state = R2_PROCESS_GATE;
             }
         }
         else
@@ -337,6 +325,7 @@ bool runGame2()
         else
         {
             // Gate failed – lose a life.
+            Serial.println("Gate failed. Current lives: " + String(lives));
             lives--;
             setWhaddaLives(lives);
             buzzer.playTone(200, 500);
@@ -359,7 +348,6 @@ bool runGame2()
         if (millis() - stateStart >= 300)
         {
             currentGate++;
-            attemptFinished = false; // reset for the next gate attempt
             state = R2_GAME_LOOP;
         }
         break;
@@ -368,52 +356,64 @@ bool runGame2()
         // Wait a moment (1000ms) after a failure before reattempting.
         if (millis() - stateStart >= 1000)
         {
-            attemptFinished = false; // allow a fresh attempt for this gate
             state = R2_GAME_LOOP;
         }
         break;
 
     case R2_RESTART_EFFECT:
     {
-        static bool restartTonePlayed = false;
-        if (millis() - stateStart < 1000)
+        // Clean restart effect: blink LED and Whadda visuals without interfering with other states.
+        static bool blinkState = false;
+        static unsigned long lastBlink = 0;
+        const unsigned long BLINK_INTERVAL = 200;
+        const unsigned long EFFECT_DURATION = 1500;
+        unsigned long elapsed = millis() - stateStart;
+
+        // Ensure timer updates are disabled during effect.
+        showTimer = false;
+
+        // Toggle blink state
+        if (millis() - lastBlink >= BLINK_INTERVAL)
         {
-            showTimer = false;
-            lcd.clear();
-            lcd.setCursor(0, 0);
-            lcd.print("Out of lives...");
-            if (!restartTonePlayed)
-            {
-                buzzer.playLoseMelody(1);
-                restartTonePlayed = true;
-            }
+            blinkState = !blinkState;
+            lastBlink = millis();
         }
-        else if (millis() - stateStart < 1500)
+
+        // Blink Whadda's LEDs.
+        whadda.blinkLEDs(0xFF, 3, BLINK_INTERVAL);
+
+        // Update LCD once per cycle.
+        showTimer = false; // hide timer during full message
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Out of lives...");
+        whadda.clearDisplay();
+        whadda.displayText("Restarting...");
+
+        if (elapsed >= EFFECT_DURATION)
         {
-            rgbLed.off();
-        }
-        else
-        {
-            // Restart effect finished – reset game state.
-            showTimer = true;
             currentGate = 1;
             lives = STARTING_LIVES;
             setWhaddaLives(lives);
             lcd.clear();
             lcd.setCursor(0, 0);
             lcd.print("Retrying...");
+            // Reset the restart effect static variables.
+            blinkState = false;
+            lastBlink = 0;
             stateStart = millis();
-            restartTonePlayed = false; // reset for future restarts
-            attemptFinished = false;   // reset attempt flag as well
             state = R2_RETRY;
         }
         break;
     }
-
     case R2_RETRY:
         if (millis() - stateStart >= 1000)
         {
+            lcd.clear();
+            // show current lives
+            setWhaddaLives(lives);
             state = R2_GAME_LOOP;
+            showTimer = true; // re-enable timer updates
         }
         break;
 
@@ -426,5 +426,6 @@ bool runGame2()
         Serial.println("Game 2 completed!");
         return true;
     }
+
     return false;
 }
