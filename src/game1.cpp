@@ -4,6 +4,10 @@
 #include "Whadda.h"
 #include "game1.h"
 
+// TODO clean up code (put in functions, remove debug prints, etc.)
+// TODO proper function docs
+// TODO creative aspect?
+
 // ---------------------------------------------------------------------------
 // External references to utility objects from main.cpp
 // ---------------------------------------------------------------------------
@@ -219,26 +223,30 @@ static void displaySequence()
 /**
  * @brief Check user input against the current sequence.
  *
- * Polls Whadda buttons, compares input with current sequence.
+ * Polls Whadda buttons using a debounced read, compares input with current sequence.
  * If correct => proceed
- * If incorrect => show "ERR" and replay the same sequence
+ * If incorrect => show "ERR" and replay the same sequence.
  */
 static void checkUserInput()
 {
-    uint8_t buttons = whadda.readButtons();
+    // Use the debounced read function with a 200ms debounce delay.
+    uint8_t buttons = whadda.readButtonsWithDebounce();
+
+    // If no button is pressed, reset lastButtonPressed and exit.
     if (buttons == 0)
     {
         lastButtonPressed = -1; // no button pressed
         return;
     }
 
-    // Identify which button was pressed
+    // Identify which button was pressed.
     for (int btnIndex = 0; btnIndex < 8; btnIndex++)
     {
         if (buttons & (1 << btnIndex))
         {
             unsigned long now = millis();
-            // Simple debounce (200ms)
+
+            // Ignore repeated rapid presses of the same button.
             if (btnIndex == lastButtonPressed && (now - lastPressTime) < 200)
             {
                 return;
@@ -247,20 +255,21 @@ static void checkUserInput()
             lastPressTime = now;
             lastButtonPressed = btnIndex;
 
-            // Compare with the next required element in the sequence
+            // Compare with the next required element in the sequence.
             if (btnIndex == sequence[userIndex])
             {
-                // Correct guess
+                // Correct guess: Play tone and flash the corresponding LED.
                 buzzer.playTone(ledFrequencies[btnIndex], 150);
 
-                // Briefly light that LED
+                // Light the LED for a brief period.
                 uint16_t ledMask = (1 << btnIndex) << 8;
                 whadda.setLEDs(ledMask);
                 delay(200);
                 whadda.setLEDs(0x0000);
 
                 userIndex++;
-                // If we've matched the entire sequence for this round
+
+                // If the entire sequence has been correctly matched.
                 if (userIndex >= seqLength)
                 {
                     currentState = ROUND_WIN_CHECK;
@@ -268,16 +277,16 @@ static void checkUserInput()
             }
             else
             {
-                // Wrong guess => beep + "ERR", then replay sequence
+                // Wrong guess: Signal error and replay the sequence.
                 buzzer.playTone(300, 700);
                 showTemporaryMessage("ERR", 1000);
                 updateDisplay();
 
-                // Replay from the start
+                // Restart sequence playback.
                 userIndex = 0;
                 currentState = DISPLAY_SEQUENCE;
             }
-            break; // handle only one button press per loop iteration
+            break; // Process only one button press per loop iteration.
         }
     }
 }

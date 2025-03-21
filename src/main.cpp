@@ -76,6 +76,7 @@ void setup()
   // Prompt user to press button to start
   lcd.setCursor(0, 1);
   lcd.print("Press start btn");
+  // buzzer.playImperialMarch();
 }
 
 // -----------------------------------------------------------------------------
@@ -127,7 +128,7 @@ void loop()
     switch (currentChallenge)
     {
     case 1:
-      if (runGame1())
+      if (runGame2())
       {
         currentChallenge++;
         // Provide short transition
@@ -136,8 +137,9 @@ void loop()
       }
       break;
     case 2:
-      if (runGame2())
+      if (runGame1())
       {
+        // todo: function to start next challenge
         currentChallenge++;
         lcd.clear();
         lcd.print("Game 3 start");

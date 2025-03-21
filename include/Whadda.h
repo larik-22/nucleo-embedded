@@ -108,6 +108,13 @@ public:
     uint8_t readButtons();
 
     /**
+     * @brief Reads the status of the buttons with debounce.
+     *
+     * @return uint8_t A bit mask representing button states.
+     */
+    uint8_t readButtonsWithDebounce(int debounceDelay = 50);
+
+    /**
      * @brief Clears the 7-segment display.
      *
      * Iterates through all 8 digits and clears their display.

@@ -132,6 +132,33 @@ uint8_t Whadda::readButtons()
 }
 
 /**
+ * @brief Reads the current state of the buttons with debounce.
+ *
+ * This function reads the button state and resets the debounce timer
+ * every time a change is detected. It returns the state once it remains
+ * unchanged for the specified debounce period.
+ *
+ * @param debounceDelayMs The debounce delay time in milliseconds.
+ * @return uint8_t A bitmask representing the stable button states.
+ */
+uint8_t Whadda::readButtonsWithDebounce(int debounceDelayMs)
+{
+    unsigned long t0 = millis();
+    uint8_t last = tm.readButtons();
+
+    while (millis() - t0 < debounceDelayMs)
+    {
+        uint8_t current = tm.readButtons();
+        if (current != last)
+        {
+            t0 = millis();
+            last = current;
+        }
+    }
+
+    return last;
+}
+/**
  * @brief Clears the display by turning off all segments.
  *
  * Iterates over all 8 positions and sets each 7-segment display to blank (0x00).
