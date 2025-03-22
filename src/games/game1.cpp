@@ -1,143 +1,18 @@
 #include <Arduino.h>
+#include <LiquidCrystal_I2C.h>
 #include "Buzzer.h"
 #include "RGBLed.h"
 #include "Whadda.h"
 #include "Game1.h"
 
-// ---------------------------------------------------------------------------
-// External references
-// ---------------------------------------------------------------------------
+// External hardware references (defined elsewhere)
 extern Buzzer buzzer;
 extern RGBLed rgbLed;
 extern Whadda whadda;
 
-// ---------------------------------------------------------------------------
-// Configuration Constants
-// ---------------------------------------------------------------------------
-namespace Config
-{
-    constexpr int MAX_LEVEL = 8;
-    constexpr int INITIAL_SEQUENCE_LENGTH = 2;
-    constexpr int MAX_SEQUENCE_SIZE = 32;
-    constexpr int NUM_LEDS = 8;
-
-    // Timing constants (ms)
-    constexpr unsigned long LED_ON_TIME = 300;
-    constexpr unsigned long LED_OFF_TIME = 200;
-    constexpr unsigned long INPUT_FEEDBACK_TIME = 200;
-    constexpr unsigned long ERROR_DISPLAY_TIME = 1000;
-    constexpr unsigned long FINISH_DISPLAY_TIME = 1000;
-    constexpr unsigned long BUTTON_DEBOUNCE_DELAY = 200;
-    constexpr unsigned long ROUND_CONFIG_BASE_DELAY = 1000;
-    constexpr unsigned long STARTING_PAUSE_DELAY = 250;
-
-    // Tone parameters
-    constexpr unsigned long TONE_DURATION_SEQUENCE = 200;
-    constexpr unsigned long TONE_DURATION_INPUT = 150;
-    constexpr unsigned long ERROR_TONE_DURATION = 700;
-    constexpr int ERROR_TONE_FREQUENCY = 300;
-    constexpr int START_TONE_FREQUENCY = 1200;
-    constexpr int START_TONE_DURATION = 300;
-
-    // Start animation blink interval
-    constexpr unsigned long START_ANIM_INTERVAL = 200;
-}
-
-namespace Frequencies
-{
-    constexpr int ledFrequencies[Config::NUM_LEDS] = {220, 262, 294, 330, 349, 392, 440, 494};
-}
-
-// ---------------------------------------------------------------------------
-// Enumerations for State Machine
-// ---------------------------------------------------------------------------
-enum class GameState
-{
-    Idle,
-    Init,
-    StartAnimation,
-    Pause,
-    DisplaySequence,
-    GetUserInput,
-    WaitInputDelay,
-    Error,
-    RoundWinCheck,
-    WaitNextLevel,
-    Finish
-};
-
-enum class SeqPhase
-{
-    LedOn,
-    LedOff
-};
-
-enum class StartAnimPhase
-{
-    Idle,
-    BlinkOn,
-    BlinkOff,
-    Done
-};
-
-// ---------------------------------------------------------------------------
-// MemoryGame Class Definition
-// ---------------------------------------------------------------------------
-class MemoryGame
-{
-public:
-    MemoryGame();
-    void init();
-    bool run(); // Called repeatedly; returns true when the challenge is complete
-
-private:
-    // State variables
-    GameState currentState;
-    SeqPhase seqPhase;
-    StartAnimPhase startAnimPhase;
-
-    bool challengeInitialized;
-    bool challengeComplete;
-    bool displayStarted;
-
-    int level;
-    int seqLength;
-    int sequence[Config::MAX_SEQUENCE_SIZE];
-    int userIndex;
-    int lastButtonPressed;
-    int blinkCount;
-    const int requiredBlinks = 2;
-    uint16_t blinkMask;
-
-    // Timing variables
-    unsigned long lastStateChangeTime;
-    unsigned long lastActionTime;
-    unsigned long lastPressTime;
-    unsigned long inputDelayStart;
-    unsigned long errorDelayStart;
-    unsigned long finishDelayStart;
-    unsigned long levelDelayStart;
-
-    // Sequence display index
-    int seqDisplayIndex;
-
-    // Private helper functions
-    void setState(GameState newState);
-    bool hasElapsed(unsigned long start, unsigned long delay) const;
-    void resetSequenceDisplay();
-    int getSequenceLengthForLevel(int lvl) const;
-    void update7SegmentDisplay() const;
-    void generateSequence(int length);
-    bool updateStartAnimation();
-    void startGame();
-    void updateSequenceDisplay();
-    void checkUserInput();
-    void handleRoundWin();
-};
-
-// ---------------------------------------------------------------------------
-// MemoryGame Class Implementation
-// ---------------------------------------------------------------------------
+//
+// Constructor and Initialization
+//
 MemoryGame::MemoryGame() : currentState(GameState::Idle),
                            seqPhase(SeqPhase::LedOn),
                            startAnimPhase(StartAnimPhase::Idle),
@@ -173,17 +48,18 @@ void MemoryGame::init()
     }
 }
 
-bool MemoryGame::hasElapsed(unsigned long start, unsigned long delay) const
-{
-    return (millis() - start) >= delay;
-}
-
+//
+// State Transition Helper
+//
 void MemoryGame::setState(GameState newState)
 {
     currentState = newState;
     lastStateChangeTime = millis();
 }
 
+//
+// Sequence Display Helpers
+//
 void MemoryGame::resetSequenceDisplay()
 {
     seqDisplayIndex = 0;
@@ -194,7 +70,7 @@ void MemoryGame::resetSequenceDisplay()
 int MemoryGame::getSequenceLengthForLevel(int lvl) const
 {
     if (lvl <= 2)
-        return Config::INITIAL_SEQUENCE_LENGTH;
+        return MemoryGameConfig::INITIAL_SEQUENCE_LENGTH;
     else if (lvl <= 4)
         return 3;
     else if (lvl <= 6)
@@ -205,8 +81,8 @@ int MemoryGame::getSequenceLengthForLevel(int lvl) const
 
 void MemoryGame::update7SegmentDisplay() const
 {
-    int dotCount = (level <= Config::MAX_LEVEL) ? level : Config::MAX_LEVEL;
-    for (uint8_t pos = 0; pos < Config::MAX_LEVEL; pos++)
+    int dotCount = (level <= MemoryGameConfig::MAX_LEVEL) ? level : MemoryGameConfig::MAX_LEVEL;
+    for (uint8_t pos = 0; pos < MemoryGameConfig::MAX_LEVEL; pos++)
     {
         whadda.display7Seg(pos, (pos < dotCount) ? 1 : 0);
     }
@@ -214,10 +90,10 @@ void MemoryGame::update7SegmentDisplay() const
 
 void MemoryGame::generateSequence(int length)
 {
-    if (length > Config::MAX_SEQUENCE_SIZE)
-        length = Config::MAX_SEQUENCE_SIZE;
+    if (length > MemoryGameConfig::MAX_SEQUENCE_SIZE)
+        length = MemoryGameConfig::MAX_SEQUENCE_SIZE;
 
-    sequence[0] = random(0, Config::NUM_LEDS);
+    sequence[0] = random(0, MemoryGameConfig::NUM_LEDS);
     for (int i = 1; i < length; i++)
     {
         // Prevent four identical consecutive values
@@ -228,13 +104,13 @@ void MemoryGame::generateSequence(int length)
             int newVal;
             do
             {
-                newVal = random(0, Config::NUM_LEDS);
+                newVal = random(0, MemoryGameConfig::NUM_LEDS);
             } while (newVal == sequence[i - 1]);
             sequence[i] = newVal;
         }
         else
         {
-            sequence[i] = random(0, Config::NUM_LEDS);
+            sequence[i] = random(0, MemoryGameConfig::NUM_LEDS);
         }
     }
 
@@ -250,9 +126,11 @@ void MemoryGame::generateSequence(int length)
     Serial.println();
 }
 
+//
+// Start Animation (Non-blocking)
+//
 bool MemoryGame::updateStartAnimation()
 {
-    // Non-blocking blink + beep animation; returns true when complete
     switch (startAnimPhase)
     {
     case StartAnimPhase::Idle:
@@ -261,19 +139,17 @@ bool MemoryGame::updateStartAnimation()
         lastActionTime = millis();
         whadda.clearDisplay();
         return false;
-
     case StartAnimPhase::BlinkOn:
         whadda.setLEDs(blinkMask << 8);
-        if (hasElapsed(lastActionTime, Config::START_ANIM_INTERVAL))
+        if (hasElapsed(lastActionTime, MemoryGameConfig::START_ANIM_INTERVAL))
         {
             startAnimPhase = StartAnimPhase::BlinkOff;
             lastActionTime = millis();
         }
         return false;
-
     case StartAnimPhase::BlinkOff:
         whadda.clearLEDs();
-        if (hasElapsed(lastActionTime, Config::START_ANIM_INTERVAL))
+        if (hasElapsed(lastActionTime, MemoryGameConfig::START_ANIM_INTERVAL))
         {
             blinkCount++;
             if (blinkCount < requiredBlinks)
@@ -283,19 +159,21 @@ bool MemoryGame::updateStartAnimation()
             }
             else
             {
-                buzzer.playTone(Config::START_TONE_FREQUENCY, Config::START_TONE_DURATION);
+                buzzer.playTone(MemoryGameConfig::START_TONE_FREQUENCY, MemoryGameConfig::START_TONE_DURATION);
                 startAnimPhase = StartAnimPhase::Done;
                 lastActionTime = millis();
             }
         }
         return false;
-
     case StartAnimPhase::Done:
-        return hasElapsed(lastActionTime, Config::START_TONE_DURATION);
+        return hasElapsed(lastActionTime, MemoryGameConfig::START_TONE_DURATION);
     }
-    return false; // fallback
+    return false; // Fallback
 }
 
+//
+// Game Start and Sequence Display
+//
 void MemoryGame::startGame()
 {
     challengeComplete = false;
@@ -323,11 +201,11 @@ void MemoryGame::updateSequenceDisplay()
             {
                 uint16_t ledMask = (1 << sequence[seqDisplayIndex]) << 8;
                 whadda.setLEDs(ledMask);
-                buzzer.playTone(Frequencies::ledFrequencies[sequence[seqDisplayIndex]], Config::TONE_DURATION_SEQUENCE);
+                buzzer.playTone(Frequencies::ledFrequencies[sequence[seqDisplayIndex]], MemoryGameConfig::TONE_DURATION_SEQUENCE);
                 lastActionTime = millis();
                 displayStarted = true;
             }
-            else if (hasElapsed(lastActionTime, Config::LED_ON_TIME))
+            else if (hasElapsed(lastActionTime, MemoryGameConfig::LED_ON_TIME))
             {
                 whadda.clearLEDs();
                 lastActionTime = millis();
@@ -337,7 +215,7 @@ void MemoryGame::updateSequenceDisplay()
         }
         else
         { // SeqPhase::LedOff
-            if (hasElapsed(lastActionTime, Config::LED_OFF_TIME))
+            if (hasElapsed(lastActionTime, MemoryGameConfig::LED_OFF_TIME))
             {
                 seqDisplayIndex++;
                 seqPhase = SeqPhase::LedOn;
@@ -353,6 +231,9 @@ void MemoryGame::updateSequenceDisplay()
     }
 }
 
+//
+// User Input Handling
+//
 void MemoryGame::checkUserInput()
 {
     uint8_t buttons = whadda.readButtonsWithDebounce();
@@ -362,12 +243,12 @@ void MemoryGame::checkUserInput()
         return;
     }
 
-    for (int btnIndex = 0; btnIndex < Config::NUM_LEDS; btnIndex++)
+    for (int btnIndex = 0; btnIndex < MemoryGameConfig::NUM_LEDS; btnIndex++)
     {
         if (buttons & (1 << btnIndex))
         {
             unsigned long now = millis();
-            if (btnIndex == lastButtonPressed && (now - lastPressTime) < Config::BUTTON_DEBOUNCE_DELAY)
+            if (btnIndex == lastButtonPressed && (now - lastPressTime) < MemoryGameConfig::BUTTON_DEBOUNCE_DELAY)
                 return;
 
             lastPressTime = now;
@@ -375,9 +256,9 @@ void MemoryGame::checkUserInput()
 
             if (btnIndex == sequence[userIndex])
             {
-                buzzer.playTone(Frequencies::ledFrequencies[btnIndex], Config::TONE_DURATION_INPUT);
+                buzzer.playTone(Frequencies::ledFrequencies[btnIndex], MemoryGameConfig::TONE_DURATION_INPUT);
                 whadda.setLEDs((1 << btnIndex) << 8);
-                inputDelayStart = millis();
+                inputDelayStart = now;
                 userIndex++;
 
                 if (userIndex >= seqLength)
@@ -387,19 +268,22 @@ void MemoryGame::checkUserInput()
             }
             else
             {
-                buzzer.playTone(Config::ERROR_TONE_FREQUENCY, Config::ERROR_TONE_DURATION);
+                buzzer.playTone(MemoryGameConfig::ERROR_TONE_FREQUENCY, MemoryGameConfig::ERROR_TONE_DURATION);
                 whadda.displayText("ERROR!");
-                errorDelayStart = millis();
+                errorDelayStart = now;
                 setState(GameState::Error);
             }
-            break; // process one button press at a time
+            break; // Process one button press at a time
         }
     }
 }
 
+//
+// Round Win Check
+//
 void MemoryGame::handleRoundWin()
 {
-    if (level >= Config::MAX_LEVEL)
+    if (level >= MemoryGameConfig::MAX_LEVEL)
     {
         whadda.clearDisplay();
         whadda.displayText("GOOD");
@@ -417,13 +301,13 @@ void MemoryGame::handleRoundWin()
     }
 }
 
+//
+// Main Game Loop (run() method)
+//
 bool MemoryGame::run()
 {
-    // Ensure one-time initialization is done
     if (!challengeInitialized)
-    {
         init();
-    }
     if (challengeComplete)
         return true;
 
@@ -431,11 +315,9 @@ bool MemoryGame::run()
     {
     case GameState::Idle:
         break;
-
     case GameState::Init:
         startGame();
         break;
-
     case GameState::StartAnimation:
         if (updateStartAnimation())
         {
@@ -444,33 +326,28 @@ bool MemoryGame::run()
             setState(GameState::Pause);
         }
         break;
-
     case GameState::Pause:
-        if (hasElapsed(lastStateChangeTime, Config::STARTING_PAUSE_DELAY))
+        if (hasElapsed(lastStateChangeTime, MemoryGameConfig::STARTING_PAUSE_DELAY))
         {
             resetSequenceDisplay();
             setState(GameState::DisplaySequence);
         }
         break;
-
     case GameState::DisplaySequence:
         updateSequenceDisplay();
         break;
-
     case GameState::GetUserInput:
         checkUserInput();
         break;
-
     case GameState::WaitInputDelay:
-        if (hasElapsed(inputDelayStart, Config::INPUT_FEEDBACK_TIME))
+        if (hasElapsed(inputDelayStart, MemoryGameConfig::INPUT_FEEDBACK_TIME))
         {
             whadda.clearLEDs();
             setState(GameState::GetUserInput);
         }
         break;
-
     case GameState::Error:
-        if (hasElapsed(errorDelayStart, Config::ERROR_DISPLAY_TIME))
+        if (hasElapsed(errorDelayStart, MemoryGameConfig::ERROR_DISPLAY_TIME))
         {
             whadda.clearDisplay();
             resetSequenceDisplay();
@@ -478,17 +355,13 @@ bool MemoryGame::run()
             setState(GameState::DisplaySequence);
         }
         break;
-
     case GameState::RoundWinCheck:
         handleRoundWin();
         break;
-
     case GameState::WaitNextLevel:
-        if (hasElapsed(inputDelayStart, Config::INPUT_FEEDBACK_TIME))
-        {
+        if (hasElapsed(inputDelayStart, MemoryGameConfig::INPUT_FEEDBACK_TIME))
             whadda.clearLEDs();
-        }
-        if (hasElapsed(levelDelayStart, Config::ROUND_CONFIG_BASE_DELAY))
+        if (hasElapsed(levelDelayStart, MemoryGameConfig::ROUND_CONFIG_BASE_DELAY))
         {
             seqLength = getSequenceLengthForLevel(level);
             generateSequence(seqLength);
@@ -497,9 +370,8 @@ bool MemoryGame::run()
             setState(GameState::DisplaySequence);
         }
         break;
-
     case GameState::Finish:
-        if (hasElapsed(finishDelayStart, Config::FINISH_DISPLAY_TIME))
+        if (hasElapsed(finishDelayStart, MemoryGameConfig::FINISH_DISPLAY_TIME))
         {
             whadda.clearDisplay();
             whadda.clearLEDs();
@@ -511,12 +383,9 @@ bool MemoryGame::run()
     return challengeComplete;
 }
 
-// ---------------------------------------------------------------------------
-// Global instance and runner function
-// ---------------------------------------------------------------------------
 MemoryGame game;
 
-bool runGame1()
+bool run()
 {
     return game.run();
 }

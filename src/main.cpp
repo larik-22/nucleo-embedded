@@ -139,9 +139,10 @@ void loop()
     switch (currentChallenge)
     {
     case 1:
-      // Use the non-blocking update version of Game 2.
-      challengeFinished = runGame2();
-
+      // static MemoryGame memoryGame;
+      // challengeFinished = memoryGame.run();
+      static EscapeVelocity escapeVelocity;
+      challengeFinished = escapeVelocity.run();
       rgbLed.update();
       whadda.update();
 
@@ -149,13 +150,15 @@ void loop()
       {
         currentChallenge++;
         lcd.clear();
-        // showTimer = false;
         lcd.print("Game 2 start");
       }
       break;
     case 2:
       // Use the non-blocking update version of Game 2.
-      challengeFinished = runGame2();
+      static MemoryGame memoryGame;
+      challengeFinished = memoryGame.run();
+      // static EscapeVelocity escapeVelocity;
+      // challengeFinished = escapeVelocity.run();
 
       rgbLed.update();
       whadda.update();
