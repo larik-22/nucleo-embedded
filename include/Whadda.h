@@ -122,6 +122,12 @@ public:
     uint8_t readButtonsWithDebounce(int debounceDelay = DEBOUNCE_DELAY);
 
     /**
+     * @brief Turns off all LEDs
+     *
+     */
+    void clearLEDs();
+
+    /**
      * @brief Clears the 7-segment display.
      *
      * Iterates through all 8 digits and clears their display.

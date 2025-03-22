@@ -1,0 +1,6 @@
+#ifndef GAME_CONFIG_H
+#define GAME_CONFIG_H
+
+#define ROUND_CONFIG_BASE_DELAY 1000
+
+#endif

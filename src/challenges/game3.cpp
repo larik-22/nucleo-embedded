@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "game3.h"
+#include "Game3.h"
 #include "Buzzer.h"
 
 extern Buzzer buzzer;

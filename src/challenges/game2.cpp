@@ -3,148 +3,188 @@
 #include <RGBLed.h>
 #include <Buzzer.h>
 #include <Whadda.h>
-#include <pins.h>
-#include <game2.h>
+#include <Pins.h>
+#include <Game2.h>
 
+// External hardware interfaces
 extern LiquidCrystal_I2C lcd;
 extern RGBLed rgbLed;
 extern Buzzer buzzer;
 extern Whadda whadda;
 
-// Game parameters:
-static const int TOTAL_GATES = 5;                // Number of gates to pass
-static const int STARTING_LIVES = 3;             // Initial lives
-static const unsigned long GATE_TIME_MS = 10000; // Allowed time per gate
-static const unsigned long IN_RANGE_MS = 2500;   // Must stay in range
-static const unsigned long BEEP_INTERVAL = 250;  // Min gap (ms) between short beeps
-static const float ALPHA = 0.1f;                 // Exponential smoothing factor
-static const int TOLERANCE = 5;                  // Threshold to reduce flicker issues
+// Global flag for LCD timer display (used by original code)
+extern bool showTimer;
 
-// Internal filter state for smoothing pot readings:
-// Credits: https://www.arduino.cc/en/Tutorial/BuiltInExamples/AnalogReadSerial
-// Credits: [exponential smoothing] https://en.wikipedia.org/wiki/Exponential_smoothing
-// And of course huge credits to gpt...
-static float g_potFilter = 0.0f;
-
-// -----------------------------------------------------------------------------
-// Potentiometer & Range Utilities
-// -----------------------------------------------------------------------------
-
-/**
- * @brief Initialize the exponential filter with the current raw pot value.
- */
-static void initPotFilter()
+namespace Game2Config
 {
-    g_potFilter = (float)analogRead(POT_PIN);
+    constexpr int TOTAL_GATES = 5;                // Number of gates to pass
+    constexpr int STARTING_LIVES = 3;             // Initial lives
+    constexpr unsigned long GATE_TIME_MS = 10000; // Allowed time per gate
+    constexpr unsigned long IN_RANGE_MS = 2500;   // Must stay in range for this duration
+    constexpr unsigned long BEEP_INTERVAL = 250;  // Gap between short beeps (ms)
+    constexpr float ALPHA = 0.1f;                 // Exponential smoothing factor
+    constexpr int TOLERANCE = 5;                  // Threshold to reduce flicker issues
+
+    constexpr unsigned long INTRO_DURATION = 1500;
+    constexpr unsigned long SUCCESS_BEEP_DURATION = 300;
+    constexpr unsigned long FAILED_PAUSE_DURATION = 1000;
+    constexpr unsigned long RETRY_DURATION = 1000;
+    constexpr unsigned long RESTART_EFFECT_DURATION = 1500;
+    constexpr unsigned long RESTART_BLINK_INTERVAL = 200;
 }
 
-/**
- * @brief Reads the pot, applies exponential smoothing, and scales by gateLevel.
- * @param gateLevel The current gate/level (multiplier).
- * @return The scaled, smoothed pot value.
- */
-static int getSmoothedPotValue(int gateLevel)
+// Internal state for gate attempt
+enum class GateAttemptState
+{
+    Init,
+    Loop
+};
+
+enum class Game2State
+{
+    Init,
+    Intro,
+    WaitIntro,
+    GameLoop,
+    ProcessGate,
+    SuccessBeep,
+    FailedPause,
+    RestartEffect,
+    Retry,
+    Finished
+};
+
+class MemoryGame2
+{
+public:
+    MemoryGame2();
+    void init();
+    bool run(); // Call repeatedly until the game finishes (returns true)
+
+private:
+    // Overall game state machine
+    Game2State state;
+    int currentGate;
+    int lives;
+    unsigned long stateStart;
+    bool gateResult;
+    bool showTimerFlag;
+
+    // Gate attempt state
+    GateAttemptState gateState;
+    int minVel;
+    int maxVel;
+    unsigned long gateStart;
+    unsigned long inRangeStart;
+    unsigned long lastBeep;
+    bool wasOutOfRange;
+    bool blinkState;
+
+    // Filter for potentiometer smoothing
+    float potFilter;
+
+    // Utility functions
+    bool hasElapsed(unsigned long start, unsigned long delay) const;
+    int getSmoothedPotValue(int gateLevel);
+    void initPotFilter();
+    void generateVelocityRange(int gateLevel, int &minVel, int &maxVel);
+    void updateGateDisplays(int gateLevel, int potValue);
+    bool isPotInRange(int potValue, int minVel, int maxVel);
+    void setWhaddaLives(int lives);
+
+    // Gate attempt update (non-blocking)
+    bool updateGateAttempt(int gateLevel);
+
+    // Restart effect helper
+    void runRestartEffect();
+};
+
+MemoryGame2::MemoryGame2() : state(Game2State::Init),
+                             currentGate(1),
+                             lives(Game2Config::STARTING_LIVES),
+                             stateStart(0),
+                             gateResult(false),
+                             showTimerFlag(true),
+                             gateState(GateAttemptState::Init),
+                             minVel(0),
+                             maxVel(0),
+                             gateStart(0),
+                             inRangeStart(0),
+                             lastBeep(0),
+                             wasOutOfRange(true),
+                             blinkState(false),
+                             potFilter(0.0f)
+{
+}
+
+bool MemoryGame2::hasElapsed(unsigned long start, unsigned long delay) const
+{
+    return (millis() - start) >= delay;
+}
+
+int MemoryGame2::getSmoothedPotValue(int gateLevel)
 {
     int raw = analogRead(POT_PIN);
-    // Exponential smoothing
-    g_potFilter = (1.0f - ALPHA) * g_potFilter + ALPHA * (float)raw;
-    // Scale by gateLevel
-    return (int)(g_potFilter * gateLevel);
+    potFilter = (1.0f - Game2Config::ALPHA) * potFilter + Game2Config::ALPHA * (float)raw;
+    return (int)(potFilter * gateLevel);
 }
 
-/**
- * @brief Generates a random velocity range for a given gateLevel.
- *        The center is in [50, maxPossible - 50] with a ~30 half-range.
- */
-static void generateVelocityRange(int gateLevel, int &minVel, int &maxVel)
+void MemoryGame2::initPotFilter()
+{
+    potFilter = (float)analogRead(POT_PIN);
+}
+
+void MemoryGame2::generateVelocityRange(int gateLevel, int &minVel, int &maxVel)
 {
     long maxPossible = 1023L * gateLevel;
     if (maxPossible < 100)
-    {
         maxPossible = 100;
-    }
-
     long center = random(50, maxPossible - 50);
     const int halfRange = 30;
-
     minVel = center - halfRange;
     maxVel = center + halfRange;
     if (minVel < 0)
-    {
         minVel = 0;
-    }
 }
 
-// -----------------------------------------------------------------------------
-// Lives & Restart Effects
-// -----------------------------------------------------------------------------
-
-/**
- * @brief Displays current lives on Whadda's first 3 LEDs.
- */
-static void setWhaddaLives(int lives)
+void MemoryGame2::updateGateDisplays(int gateLevel, int potValue)
 {
+    lcd.setCursor(0, 0);
+    lcd.print("Gate ");
+    lcd.print(gateLevel);
+    char buff[16];
+    sprintf(buff, "Spd %4d", potValue);
+    whadda.displayText(buff);
+}
+
+bool MemoryGame2::isPotInRange(int potValue, int minVel, int maxVel)
+{
+    int minCheck = minVel - Game2Config::TOLERANCE;
+    int maxCheck = maxVel + Game2Config::TOLERANCE;
+    return (potValue >= minCheck && potValue <= maxCheck);
+}
+
+void MemoryGame2::setWhaddaLives(int lives)
+{
+    // Clear all 8 LEDs first
     for (int i = 0; i < 8; i++)
     {
         whadda.setLED(i, false);
     }
+    // Light up the first 3 LEDs based on lives
     for (int i = 0; i < lives && i < 3; i++)
     {
         whadda.setLED(i, true);
     }
 }
 
-// -----------------------------------------------------------------------------
-// Gate Attempt Logic
-// -----------------------------------------------------------------------------
-/**
- * @brief Updates LCD (top row) with the current pot speed and updates Whadda display.
- *        (You may wish to use fixed‑width strings to avoid leftover characters.)
- */
-static void updateGateDisplays(int gateLevel, int potValue)
+bool MemoryGame2::updateGateAttempt(int gateLevel)
 {
-    lcd.setCursor(0, 0);
-    lcd.print("Gate ");
-    lcd.print(gateLevel);
-    char buff[8];
-    sprintf(buff, "Spd %4d", potValue);
-    whadda.displayText(buff);
-}
-
-/**
- * @brief Checks if potValue is within [minVel, maxVel], with TOLERANCE.
- */
-static bool isPotInRange(int potValue, int minVel, int maxVel)
-{
-    int minCheck = minVel - TOLERANCE;
-    int maxCheck = maxVel + TOLERANCE;
-    return (potValue >= minCheck && potValue <= maxCheck);
-}
-
-/**
- * @brief Non-blocking gate attempt update.
- *        Call repeatedly until it returns true. When finished, 'gatePassed' holds the result.
- */
-bool doGateAttemptUpdate(int gateLevel, bool &gatePassed)
-{
-    enum GateState
-    {
-        GA_INIT,
-        GA_LOOP,
-    };
-    static GateState gaState = GA_INIT;
-    static int minVel, maxVel;
-    static unsigned long gateStart, inRangeStart, lastBeep;
-    static bool wasOutOfRange;
-    // Added blink state for LED toggling:
-    static bool blinkState = false;
-
     unsigned long now = millis();
 
-    switch (gaState)
+    switch (gateState)
     {
-    case GA_INIT:
-        // Initialize a new gate attempt.
+    case GateAttemptState::Init:
         generateVelocityRange(gateLevel, minVel, maxVel);
         lcd.clear();
         lcd.setCursor(0, 0);
@@ -162,44 +202,39 @@ bool doGateAttemptUpdate(int gateLevel, bool &gatePassed)
         lastBeep = now;
         wasOutOfRange = true;
         blinkState = false;
-
-        // DEBUG: print range info
+        // Debug info
         Serial.print("[Gate ");
         Serial.print(gateLevel);
         Serial.print("] Range: ");
         Serial.print(minVel);
         Serial.print(" - ");
         Serial.println(maxVel);
-        gaState = GA_LOOP;
-        return false; // Not finished yet
+        gateState = GateAttemptState::Loop;
+        return false;
 
-    case GA_LOOP:
+    case GateAttemptState::Loop:
     {
-        // Check for time-out.
-        if (now - gateStart > GATE_TIME_MS)
+        if (now - gateStart > Game2Config::GATE_TIME_MS)
         {
-            gatePassed = false;
-            gaState = GA_INIT;
+            // Time out – gate failed.
+            gateResult = false;
+            gateState = GateAttemptState::Init;
             return true;
         }
-        // Read the potentiometer and update displays.
         int potValue = getSmoothedPotValue(gateLevel);
         updateGateDisplays(gateLevel, potValue);
         if (isPotInRange(potValue, minVel, maxVel))
         {
-            // Toggle the LED to blink.
-            if (now - lastBeep >= BEEP_INTERVAL)
+            if (now - lastBeep >= Game2Config::BEEP_INTERVAL)
             {
                 blinkState = !blinkState;
                 if (blinkState)
                 {
-                    // LED ON in green and play a short beep.
                     buzzer.playTone(800, 50);
-                    rgbLed.setColor(0, 255, 0);
+                    rgbLed.setColor(0, 255, 0); // Green when in range
                 }
                 else
                 {
-                    // LED OFF.
                     rgbLed.off();
                 }
                 lastBeep = now;
@@ -209,18 +244,17 @@ bool doGateAttemptUpdate(int gateLevel, bool &gatePassed)
                 wasOutOfRange = false;
                 inRangeStart = now;
             }
-            if (now - inRangeStart >= IN_RANGE_MS)
+            if (now - inRangeStart >= Game2Config::IN_RANGE_MS)
             {
-                // Successfully maintained in-range for the required time.
-                gatePassed = true;
-                gaState = GA_INIT;
+                // Maintained in-range long enough.
+                gateResult = true;
+                gateState = GateAttemptState::Init;
                 return true;
             }
         }
         else
         {
-            // Out-of-range condition: show a steady red color.
-            rgbLed.setColor(255, 0, 0);
+            rgbLed.setColor(255, 0, 0); // Red when out-of-range
             if (!wasOutOfRange)
             {
                 wasOutOfRange = true;
@@ -230,182 +264,151 @@ bool doGateAttemptUpdate(int gateLevel, bool &gatePassed)
         return false;
     }
     }
-    return false;
+    return false; // Fallback (should not reach here)
 }
 
-// -----------------------------------------------------------------------------
-// Non-Blocking Main Challenge Function
-// -----------------------------------------------------------------------------
-
-/**
- * @brief Non-blocking game2 state machine.
- *        Call runGame2() repeatedly until it returns true.
- *
- * Changes:
- *  - Uses millis() for waiting (pausing) to show messages.
- *  - Uses global flag showTimer to hide the timer when printing full-row messages.
- *  - Implements a dedicated restart effect state (R2_RESTART_EFFECT) to ensure it plays once.
- */
-bool runGame2()
+void MemoryGame2::runRestartEffect()
 {
-    enum GameState
-    {
-        R2_INIT,
-        R2_INTRO,
-        R2_WAIT_INTRO,
-        R2_GAME_LOOP,
-        R2_PROCESS_GATE,
-        R2_SUCCESS_BEEP,
-        R2_FAILED_PAUSE,
-        R2_RESTART_EFFECT,
-        R2_RETRY,
-        R2_FINISHED
-    };
+    const unsigned long EFFECT_DURATION = Game2Config::RESTART_EFFECT_DURATION;
+    // Disable timer display during restart effect
+    showTimerFlag = false;
+    // Blink Whadda's LEDs and update LCD
+    whadda.blinkLEDs(0xFF, 3, Game2Config::RESTART_BLINK_INTERVAL);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Out of lives...");
+    whadda.displayText("Restarting...");
+}
 
-    static GameState state = R2_INIT;
-    static int currentGate = 1;
-    static int lives = STARTING_LIVES;
-    static unsigned long stateStart = 0;
-    static bool gateResult = false;
+void MemoryGame2::init()
+{
+    buzzer.playRoundStartMelody();
+    state = Game2State::Init;
+    currentGate = 1;
+    lives = Game2Config::STARTING_LIVES;
+    setWhaddaLives(lives);
+    stateStart = millis();
+    showTimerFlag = true;
+    // Initialize gate attempt state
+    gateState = GateAttemptState::Init;
+}
+
+bool MemoryGame2::run()
+{
+    unsigned long now = millis();
 
     switch (state)
     {
-    case R2_INIT:
-        // Initialize game state.
-        currentGate = 1;
-        lives = STARTING_LIVES;
-        setWhaddaLives(lives);
-        state = R2_INTRO;
+    case Game2State::Init:
+        init();
+        state = Game2State::Intro;
         break;
 
-    case R2_INTRO:
+    case Game2State::Intro:
         lcd.clear();
         lcd.setCursor(0, 0);
-        showTimer = false; // hide timer during full message
+        showTimer = false;
         lcd.print("Escape Velocity!");
         lcd.setCursor(0, 1);
         lcd.print("Good luck!");
-        stateStart = millis();
-        state = R2_WAIT_INTRO;
+        stateStart = now;
+        state = Game2State::WaitIntro;
         break;
 
-    case R2_WAIT_INTRO:
-        if (millis() - stateStart >= 1500)
+    case Game2State::WaitIntro:
+        if (hasElapsed(stateStart, Game2Config::INTRO_DURATION))
         {
-            state = R2_GAME_LOOP;
+            state = Game2State::GameLoop;
             lcd.clear();
-            showTimer = true; // re-enable timer updates
+            showTimer = true;
         }
         break;
 
-    case R2_GAME_LOOP:
-        if (currentGate <= TOTAL_GATES)
+    case Game2State::GameLoop:
+        if (currentGate <= Game2Config::TOTAL_GATES)
         {
-            // Process the current gate attempt non-blockingly.
-            if (doGateAttemptUpdate(currentGate, gateResult))
+            if (updateGateAttempt(currentGate))
             {
-                state = R2_PROCESS_GATE;
+                state = Game2State::ProcessGate;
             }
         }
         else
         {
-            state = R2_FINISHED;
+            state = Game2State::Finished;
         }
         break;
 
-    case R2_PROCESS_GATE:
+    case Game2State::ProcessGate:
         if (gateResult)
         {
-            // Gate passed – play a short success beep sequence.
+            // Success: play a short beep sequence.
             buzzer.playTone(1000, 150);
             buzzer.playTone(1200, 150);
-            stateStart = millis();
-            state = R2_SUCCESS_BEEP;
+            stateStart = now;
+            state = Game2State::SuccessBeep;
         }
         else
         {
-            // Gate failed – lose a life.
+            // Failure: lose a life.
             Serial.println("Gate failed. Current lives: " + String(lives));
             lives--;
             setWhaddaLives(lives);
             buzzer.playTone(200, 500);
             if (lives <= 0)
             {
-                // Out of lives: move to restart effect state.
-                stateStart = millis();
-                state = R2_RESTART_EFFECT;
+                stateStart = now;
+                state = Game2State::RestartEffect;
             }
             else
             {
-                // NEW: Pause briefly before retrying the same gate.
-                stateStart = millis();
-                state = R2_FAILED_PAUSE;
+                stateStart = now;
+                state = Game2State::FailedPause;
             }
         }
         break;
 
-    case R2_SUCCESS_BEEP:
-        if (millis() - stateStart >= 300)
+    case Game2State::SuccessBeep:
+        if (hasElapsed(stateStart, Game2Config::SUCCESS_BEEP_DURATION))
         {
             currentGate++;
-            state = R2_GAME_LOOP;
+            state = Game2State::GameLoop;
         }
         break;
 
-    case R2_FAILED_PAUSE:
-        // Wait a moment (1000ms) after a failure before reattempting.
-        if (millis() - stateStart >= 1000)
+    case Game2State::FailedPause:
+        if (hasElapsed(stateStart, Game2Config::FAILED_PAUSE_DURATION))
         {
-            state = R2_GAME_LOOP;
+            state = Game2State::GameLoop;
         }
         break;
 
-    case R2_RESTART_EFFECT:
-    {
-        // Clean restart effect: blink Whadda visuals without interfering with other states.
-        const unsigned long BLINK_INTERVAL = 200;
-        const unsigned long EFFECT_DURATION = 1500;
-        unsigned long elapsed = millis() - stateStart;
-
-        // Ensure timer updates are disabled during effect.
-        showTimer = false;
-
-        // Blink Whadda's LEDs.
-        whadda.blinkLEDs(0xFF, 3, BLINK_INTERVAL);
-
-        // Update LCD once per cycle.
-        showTimer = false; // hide timer during full message
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Out of lives...");
-        whadda.clearDisplay();
-        whadda.displayText("Restarting...");
-
-        if (elapsed >= EFFECT_DURATION)
+    case Game2State::RestartEffect:
+        runRestartEffect();
+        if (hasElapsed(stateStart, Game2Config::RESTART_EFFECT_DURATION))
         {
-
             lcd.clear();
             lcd.setCursor(0, 0);
+            showTimer = false;
             lcd.print("Retrying...");
-            stateStart = millis();
-            state = R2_RETRY;
-        }
-        break;
-    }
-    case R2_RETRY:
-        if (millis() - stateStart >= 1000)
-        {
-            lcd.clear();
-            // show current lives
-            currentGate = 1;
-            lives = STARTING_LIVES;
-            setWhaddaLives(lives);
-            state = R2_GAME_LOOP;
-            showTimer = true; // re-enable timer updates
+            stateStart = now;
+            state = Game2State::Retry;
         }
         break;
 
-    case R2_FINISHED:
+    case Game2State::Retry:
+        if (hasElapsed(stateStart, Game2Config::RETRY_DURATION))
+        {
+            lcd.clear();
+            currentGate = 1;
+            lives = Game2Config::STARTING_LIVES;
+            state = Game2State::GameLoop;
+            Serial.println("SHOULD SET LIVES TO: " + String(lives));
+            setWhaddaLives(lives);
+            showTimer = true;
+        }
+        break;
+
+    case Game2State::Finished:
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("Challenge Done!");
@@ -416,4 +419,12 @@ bool runGame2()
     }
 
     return false;
+}
+
+// Global instance and runner function
+MemoryGame2 game2;
+
+bool runGame2()
+{
+    return game2.run();
 }

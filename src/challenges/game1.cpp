@@ -2,186 +2,243 @@
 #include "Buzzer.h"
 #include "RGBLed.h"
 #include "Whadda.h"
-#include "game1.h"
-
-// TODO clean up code (put in functions, remove debug prints, etc.)
-// TODO: Make sure game is non-blocking and never uses delay(). Game-state mindset
+#include "Game1.h"
 
 // ---------------------------------------------------------------------------
-// External references to utility objects from main.cpp
+// External references
 // ---------------------------------------------------------------------------
 extern Buzzer buzzer;
 extern RGBLed rgbLed;
 extern Whadda whadda;
 
 // ---------------------------------------------------------------------------
-// Configuration
+// Configuration Constants
 // ---------------------------------------------------------------------------
-static const int MAX_LEVEL = 8;               // How many rounds to complete
-static const int INITIAL_SEQUENCE_LENGTH = 2; // Sequence length at early levels
-static const int MAX_SEQUENCE_SIZE = 32;      // Safety for storing generated data
-static const int BASE_DELAY = 500;            // Base delay for round transitions
-
-// Frequency table for each LED (0..7)
-static const int ledFrequencies[8] = {220, 262, 294, 330, 349, 392, 440, 494};
-
-// ---------------------------------------------------------------------------
-// Internal State Variables
-// ---------------------------------------------------------------------------
-static bool challengeInitialized = false; // One-time init flag
-static bool challengeComplete = false;    // Set true upon winning
-
-// Memory-sequence data
-static int level = 0;
-static int seqLength = 0;
-static int sequence[MAX_SEQUENCE_SIZE];
-static int userIndex = 0;
-
-// Simple state machine
-enum GameState
+namespace Config
 {
-    IDLE,
-    DISPLAY_SEQUENCE,
-    GET_USER_INPUT,
-    ROUND_WIN_CHECK,
+    constexpr int MAX_LEVEL = 8;
+    constexpr int INITIAL_SEQUENCE_LENGTH = 2;
+    constexpr int MAX_SEQUENCE_SIZE = 32;
+    constexpr int NUM_LEDS = 8;
+
+    // Timing constants (ms)
+    constexpr unsigned long LED_ON_TIME = 300;
+    constexpr unsigned long LED_OFF_TIME = 200;
+    constexpr unsigned long INPUT_FEEDBACK_TIME = 200;
+    constexpr unsigned long ERROR_DISPLAY_TIME = 1000;
+    constexpr unsigned long FINISH_DISPLAY_TIME = 1000;
+    constexpr unsigned long BUTTON_DEBOUNCE_DELAY = 200;
+    constexpr unsigned long ROUND_CONFIG_BASE_DELAY = 1000;
+    constexpr unsigned long STARTING_PAUSE_DELAY = 250;
+
+    // Tone parameters
+    constexpr unsigned long TONE_DURATION_SEQUENCE = 200;
+    constexpr unsigned long TONE_DURATION_INPUT = 150;
+    constexpr unsigned long ERROR_TONE_DURATION = 700;
+    constexpr int ERROR_TONE_FREQUENCY = 300;
+    constexpr int START_TONE_FREQUENCY = 1200;
+    constexpr int START_TONE_DURATION = 300;
+
+    // Start animation blink interval
+    constexpr unsigned long START_ANIM_INTERVAL = 200;
+}
+
+namespace Frequencies
+{
+    constexpr int ledFrequencies[Config::NUM_LEDS] = {220, 262, 294, 330, 349, 392, 440, 494};
+}
+
+// ---------------------------------------------------------------------------
+// Enumerations for State Machine
+// ---------------------------------------------------------------------------
+enum class GameState
+{
+    Idle,
+    Init,
+    StartAnimation,
+    Pause,
+    DisplaySequence,
+    GetUserInput,
+    WaitInputDelay,
+    Error,
+    RoundWinCheck,
+    WaitNextLevel,
+    Finish
 };
-static GameState currentState = IDLE;
 
-// For basic button debouncing
-static unsigned long lastPressTime = 0;
-static int lastButtonPressed = -1;
-
-// ---------------------------------------------------------------------------
-// Forward Declarations of Internal Functions
-// ---------------------------------------------------------------------------
-static void startGame();
-static void generateSequence(int length);
-static void displaySequence();
-static void checkUserInput();
-static void nextLevel();
-static void finishGame();
-static int getSequenceLengthForLevel(int lvl);
-static void updateDisplay();
-static int getRoundDelay(int lvl);
-
-// ---------------------------------------------------------------------------
-// Public Function: runChallenge()
-//    - Called repeatedly from the main program to handle the puzzle’s logic.
-//    - Returns true once the player completes all required rounds (MAX_LEVEL).
-// ---------------------------------------------------------------------------
-bool runGame1()
+enum class SeqPhase
 {
-    // Initialize once
+    LedOn,
+    LedOff
+};
+
+enum class StartAnimPhase
+{
+    Idle,
+    BlinkOn,
+    BlinkOff,
+    Done
+};
+
+// ---------------------------------------------------------------------------
+// MemoryGame Class Definition
+// ---------------------------------------------------------------------------
+class MemoryGame
+{
+public:
+    MemoryGame();
+    void init();
+    bool run(); // Called repeatedly; returns true when the challenge is complete
+
+private:
+    // State variables
+    GameState currentState;
+    SeqPhase seqPhase;
+    StartAnimPhase startAnimPhase;
+
+    bool challengeInitialized;
+    bool challengeComplete;
+    bool displayStarted;
+
+    int level;
+    int seqLength;
+    int sequence[Config::MAX_SEQUENCE_SIZE];
+    int userIndex;
+    int lastButtonPressed;
+    int blinkCount;
+    const int requiredBlinks = 2;
+    uint16_t blinkMask;
+
+    // Timing variables
+    unsigned long lastStateChangeTime;
+    unsigned long lastActionTime;
+    unsigned long lastPressTime;
+    unsigned long inputDelayStart;
+    unsigned long errorDelayStart;
+    unsigned long finishDelayStart;
+    unsigned long levelDelayStart;
+
+    // Sequence display index
+    int seqDisplayIndex;
+
+    // Private helper functions
+    void setState(GameState newState);
+    bool hasElapsed(unsigned long start, unsigned long delay) const;
+    void resetSequenceDisplay();
+    int getSequenceLengthForLevel(int lvl) const;
+    void update7SegmentDisplay() const;
+    void generateSequence(int length);
+    bool updateStartAnimation();
+    void startGame();
+    void updateSequenceDisplay();
+    void checkUserInput();
+    void handleRoundWin();
+};
+
+// ---------------------------------------------------------------------------
+// MemoryGame Class Implementation
+// ---------------------------------------------------------------------------
+MemoryGame::MemoryGame() : currentState(GameState::Idle),
+                           seqPhase(SeqPhase::LedOn),
+                           startAnimPhase(StartAnimPhase::Idle),
+                           challengeInitialized(false),
+                           challengeComplete(false),
+                           displayStarted(false),
+                           level(0),
+                           seqLength(0),
+                           userIndex(0),
+                           lastButtonPressed(-1),
+                           blinkCount(0),
+                           blinkMask(0xFF),
+                           lastStateChangeTime(0),
+                           lastActionTime(0),
+                           lastPressTime(0),
+                           inputDelayStart(0),
+                           errorDelayStart(0),
+                           finishDelayStart(0),
+                           levelDelayStart(0),
+                           seqDisplayIndex(0)
+{
+}
+
+void MemoryGame::init()
+{
     if (!challengeInitialized)
     {
         buzzer.playRoundStartMelody();
         challengeInitialized = true;
         challengeComplete = false;
-        currentState = IDLE;
-
         whadda.clearDisplay();
+        setState(GameState::Init);
     }
-
-    // If already complete, just return true every time
-    if (challengeComplete)
-    {
-        return true;
-    }
-
-    // State machine
-    switch (currentState)
-    {
-    case IDLE:
-        // Automatically start once
-        startGame();
-        break;
-
-    case DISPLAY_SEQUENCE:
-        displaySequence();
-        break;
-
-    case GET_USER_INPUT:
-        checkUserInput();
-        break;
-
-    case ROUND_WIN_CHECK:
-        if (level >= MAX_LEVEL)
-        {
-            // Completed all rounds => puzzle solved
-            finishGame();
-        }
-        else
-        {
-            // Advance to next level
-            nextLevel();
-        }
-        break;
-    }
-
-    return challengeComplete;
 }
 
-// ---------------------------------------------------------------------------
-// Internal Function Definitions
-// ---------------------------------------------------------------------------
-/**
- * Reset puzzle state and generate initial sequence
- */
-static void startGame()
+bool MemoryGame::hasElapsed(unsigned long start, unsigned long delay) const
 {
-    level = 1;
-    seqLength = getSequenceLengthForLevel(level);
-    userIndex = 0;
-
-    lastPressTime = 0;
-    lastButtonPressed = -1;
-
-    // Small "start" effect
-    whadda.blinkLEDs(0xFF, 2, 200);
-    buzzer.playTone(1200, 300);
-
-    generateSequence(seqLength);
-    currentState = DISPLAY_SEQUENCE;
-    updateDisplay();
+    return (millis() - start) >= delay;
 }
 
-/**
- * generateSequence():
- *   - Randomly fill sequence[] for the given length
- *   - Avoid 4 identical consecutive entries
- */
-static void generateSequence(int length)
+void MemoryGame::setState(GameState newState)
 {
-    if (length > MAX_SEQUENCE_SIZE)
+    currentState = newState;
+    lastStateChangeTime = millis();
+}
+
+void MemoryGame::resetSequenceDisplay()
+{
+    seqDisplayIndex = 0;
+    seqPhase = SeqPhase::LedOn;
+    displayStarted = false;
+}
+
+int MemoryGame::getSequenceLengthForLevel(int lvl) const
+{
+    if (lvl <= 2)
+        return Config::INITIAL_SEQUENCE_LENGTH;
+    else if (lvl <= 4)
+        return 3;
+    else if (lvl <= 6)
+        return 4;
+    else
+        return 5;
+}
+
+void MemoryGame::update7SegmentDisplay() const
+{
+    int dotCount = (level <= Config::MAX_LEVEL) ? level : Config::MAX_LEVEL;
+    for (uint8_t pos = 0; pos < Config::MAX_LEVEL; pos++)
     {
-        length = MAX_SEQUENCE_SIZE; // Safety clamp
+        whadda.display7Seg(pos, (pos < dotCount) ? 1 : 0);
     }
+}
 
-    // First random element
-    sequence[0] = random(0, 8);
+void MemoryGame::generateSequence(int length)
+{
+    if (length > Config::MAX_SEQUENCE_SIZE)
+        length = Config::MAX_SEQUENCE_SIZE;
 
-    // Fill the remainder
+    sequence[0] = random(0, Config::NUM_LEDS);
     for (int i = 1; i < length; i++)
     {
+        // Prevent four identical consecutive values
         if (i >= 3 &&
             sequence[i - 1] == sequence[i - 2] &&
             sequence[i - 2] == sequence[i - 3])
         {
-            // Avoid 4 identical in a row
             int newVal;
             do
             {
-                newVal = random(0, 8);
+                newVal = random(0, Config::NUM_LEDS);
             } while (newVal == sequence[i - 1]);
             sequence[i] = newVal;
         }
         else
         {
-            sequence[i] = random(0, 8);
+            sequence[i] = random(0, Config::NUM_LEDS);
         }
     }
 
-    // print the sequence for debugging
+    // Debug output
     Serial.print("Generated sequence: ");
     for (int i = 0; i < length; i++)
     {
@@ -193,191 +250,273 @@ static void generateSequence(int length)
     Serial.println();
 }
 
-/**
- * @brief Shows the current round’s sequence to the player,
- * Then transitions to GET_USER_INPUT
- */
-static void displaySequence()
+bool MemoryGame::updateStartAnimation()
 {
-    whadda.displayText("");
-
-    for (int i = 0; i < seqLength; i++)
+    // Non-blocking blink + beep animation; returns true when complete
+    switch (startAnimPhase)
     {
-        // shift to red LED region
-        uint16_t ledMask = (1 << sequence[i]) << 8;
-        whadda.setLEDs(ledMask);
+    case StartAnimPhase::Idle:
+        blinkCount = 0;
+        startAnimPhase = StartAnimPhase::BlinkOn;
+        lastActionTime = millis();
+        whadda.clearDisplay();
+        return false;
 
-        buzzer.playTone(ledFrequencies[sequence[i]], 200);
-        delay(300);
+    case StartAnimPhase::BlinkOn:
+        whadda.setLEDs(blinkMask << 8);
+        if (hasElapsed(lastActionTime, Config::START_ANIM_INTERVAL))
+        {
+            startAnimPhase = StartAnimPhase::BlinkOff;
+            lastActionTime = millis();
+        }
+        return false;
 
-        whadda.setLEDs(0x0000);
-        delay(200);
+    case StartAnimPhase::BlinkOff:
+        whadda.clearLEDs();
+        if (hasElapsed(lastActionTime, Config::START_ANIM_INTERVAL))
+        {
+            blinkCount++;
+            if (blinkCount < requiredBlinks)
+            {
+                startAnimPhase = StartAnimPhase::BlinkOn;
+                lastActionTime = millis();
+            }
+            else
+            {
+                buzzer.playTone(Config::START_TONE_FREQUENCY, Config::START_TONE_DURATION);
+                startAnimPhase = StartAnimPhase::Done;
+                lastActionTime = millis();
+            }
+        }
+        return false;
+
+    case StartAnimPhase::Done:
+        return hasElapsed(lastActionTime, Config::START_TONE_DURATION);
     }
-
-    userIndex = 0;
-    currentState = GET_USER_INPUT;
-    updateDisplay();
+    return false; // fallback
 }
 
-/**
- * @brief Check user input against the current sequence.
- *
- * Polls Whadda buttons using a debounced read, compares input with current sequence.
- * If correct => proceed
- * If incorrect => show "ERR" and replay the same sequence.
- */
-static void checkUserInput()
+void MemoryGame::startGame()
 {
-    // Use the debounced read function with a 200ms debounce delay.
-    uint8_t buttons = whadda.readButtonsWithDebounce();
+    challengeComplete = false;
+    level = 1;
+    seqLength = getSequenceLengthForLevel(level);
+    userIndex = 0;
+    lastButtonPressed = -1;
+    lastPressTime = 0;
 
-    // If no button is pressed, reset lastButtonPressed and exit.
+    generateSequence(seqLength);
+    resetSequenceDisplay();
+    update7SegmentDisplay();
+
+    startAnimPhase = StartAnimPhase::Idle;
+    setState(GameState::StartAnimation);
+}
+
+void MemoryGame::updateSequenceDisplay()
+{
+    if (seqDisplayIndex < seqLength)
+    {
+        if (seqPhase == SeqPhase::LedOn)
+        {
+            if (!displayStarted)
+            {
+                uint16_t ledMask = (1 << sequence[seqDisplayIndex]) << 8;
+                whadda.setLEDs(ledMask);
+                buzzer.playTone(Frequencies::ledFrequencies[sequence[seqDisplayIndex]], Config::TONE_DURATION_SEQUENCE);
+                lastActionTime = millis();
+                displayStarted = true;
+            }
+            else if (hasElapsed(lastActionTime, Config::LED_ON_TIME))
+            {
+                whadda.clearLEDs();
+                lastActionTime = millis();
+                displayStarted = false;
+                seqPhase = SeqPhase::LedOff;
+            }
+        }
+        else
+        { // SeqPhase::LedOff
+            if (hasElapsed(lastActionTime, Config::LED_OFF_TIME))
+            {
+                seqDisplayIndex++;
+                seqPhase = SeqPhase::LedOn;
+            }
+        }
+    }
+    else
+    {
+        whadda.clearLEDs();
+        userIndex = 0;
+        update7SegmentDisplay();
+        setState(GameState::GetUserInput);
+    }
+}
+
+void MemoryGame::checkUserInput()
+{
+    uint8_t buttons = whadda.readButtonsWithDebounce();
     if (buttons == 0)
     {
-        lastButtonPressed = -1; // no button pressed
+        lastButtonPressed = -1;
         return;
     }
 
-    // Identify which button was pressed.
-    for (int btnIndex = 0; btnIndex < 8; btnIndex++)
+    for (int btnIndex = 0; btnIndex < Config::NUM_LEDS; btnIndex++)
     {
         if (buttons & (1 << btnIndex))
         {
             unsigned long now = millis();
-
-            // Ignore repeated rapid presses of the same button.
-            if (btnIndex == lastButtonPressed && (now - lastPressTime) < 200)
-            {
+            if (btnIndex == lastButtonPressed && (now - lastPressTime) < Config::BUTTON_DEBOUNCE_DELAY)
                 return;
-            }
 
             lastPressTime = now;
             lastButtonPressed = btnIndex;
 
-            // Compare with the next required element in the sequence.
             if (btnIndex == sequence[userIndex])
             {
-                // Correct guess: Play tone and flash the corresponding LED.
-                buzzer.playTone(ledFrequencies[btnIndex], 150);
-
-                // Light the LED for a brief period.
-                uint16_t ledMask = (1 << btnIndex) << 8;
-                whadda.setLEDs(ledMask);
-                delay(200);
-                whadda.setLEDs(0x0000);
-
+                buzzer.playTone(Frequencies::ledFrequencies[btnIndex], Config::TONE_DURATION_INPUT);
+                whadda.setLEDs((1 << btnIndex) << 8);
+                inputDelayStart = millis();
                 userIndex++;
 
-                // If the entire sequence has been correctly matched.
                 if (userIndex >= seqLength)
-                {
-                    currentState = ROUND_WIN_CHECK;
-                }
+                    setState(GameState::RoundWinCheck);
+                else
+                    setState(GameState::WaitInputDelay);
             }
             else
             {
-                // Wrong guess: Signal error and replay the sequence.
-                buzzer.playTone(300, 700);
-                whadda.showTemporaryMessage("ERROR!", 1000);
-                updateDisplay();
-
-                // Restart sequence playback.
-                userIndex = 0;
-                currentState = DISPLAY_SEQUENCE;
+                buzzer.playTone(Config::ERROR_TONE_FREQUENCY, Config::ERROR_TONE_DURATION);
+                whadda.displayText("ERROR!");
+                errorDelayStart = millis();
+                setState(GameState::Error);
             }
-            break;
+            break; // process one button press at a time
         }
     }
 }
 
-/**
- * @brief Move to the next level, build new sequence, show it.
- */
-static void nextLevel()
+void MemoryGame::handleRoundWin()
 {
-    level++;
-    delay(getRoundDelay(level));
-
-    seqLength = getSequenceLengthForLevel(level);
-    generateSequence(seqLength);
-    updateDisplay();
-    currentState = DISPLAY_SEQUENCE;
-}
-
-/**
- *  @brief The user has completed all rounds => puzzle solved.
- *
- *  Show a success animation, then set challengeComplete = true.
- */
-static void finishGame()
-{
-    currentState = IDLE;
-    challengeComplete = true;
-
-    // Flash and play a “win” melody
-    whadda.blinkLEDs(0xFF, 3, 200);
-    buzzer.playWinMelody();
-    whadda.clearDisplay();
-    whadda.displayText("GOOD");
-    delay(1000);
-
-    whadda.clearDisplay();
-    whadda.setLEDs(0x0000);
-}
-
-/**
- * @brief Customize how the sequence length ramps up per level.
- */
-static int getSequenceLengthForLevel(int lvl)
-{
-    // Simple example progression
-    if (lvl <= 2)
-        return INITIAL_SEQUENCE_LENGTH; // e.g., 2
-    else if (lvl <= 4)
-        return 3;
-    else if (lvl <= 6)
-        return 4;
+    if (level >= Config::MAX_LEVEL)
+    {
+        whadda.clearDisplay();
+        whadda.displayText("GOOD");
+        buzzer.playWinMelody();
+        finishDelayStart = millis();
+        setState(GameState::Finish);
+    }
     else
-        return 5;
-}
-
-/**
- *  @brief Show the current level (or round) on Whadda display and fill dots on 7-segment displays.
- */
-static void updateDisplay()
-{
-    // Determine how many dots to fill based on the current level.
-    // Assume the 7-seg display has 8 positions and we fill one dot per level (max 8).
-    int dotCount = (level <= 8) ? level : 8;
-
-    // Fill the 7-seg display dots.
-    // For each position, if it's within dotCount, display a "filled" indicator (using value 1),
-    // otherwise clear it by displaying 0.
-    for (uint8_t pos = 0; pos < 8; pos++)
     {
-        if (pos < dotCount)
-        {
-            whadda.display7Seg(pos, 1);
-        }
-        else
-        {
-            whadda.display7Seg(pos, 0);
-        }
+        level++;
+        whadda.clearDisplay();
+        update7SegmentDisplay();
+        levelDelayStart = millis();
+        setState(GameState::WaitNextLevel);
     }
 }
 
-/**
- * Returns a decreasing delay as level increases (never < 200ms).
- *
- * Used to create shorter pauses between levels at higher difficulty.
- */
-static int getRoundDelay(int lvl)
+bool MemoryGame::run()
 {
-    int decrement = 100 * (lvl - 1);
-    int result = BASE_DELAY - decrement;
-    if (result < 200)
+    // Ensure one-time initialization is done
+    if (!challengeInitialized)
     {
-        result = 200;
+        init();
     }
-    return result;
+    if (challengeComplete)
+        return true;
+
+    switch (currentState)
+    {
+    case GameState::Idle:
+        break;
+
+    case GameState::Init:
+        startGame();
+        break;
+
+    case GameState::StartAnimation:
+        if (updateStartAnimation())
+        {
+            whadda.clearDisplay();
+            whadda.clearLEDs();
+            setState(GameState::Pause);
+        }
+        break;
+
+    case GameState::Pause:
+        if (hasElapsed(lastStateChangeTime, Config::STARTING_PAUSE_DELAY))
+        {
+            resetSequenceDisplay();
+            setState(GameState::DisplaySequence);
+        }
+        break;
+
+    case GameState::DisplaySequence:
+        updateSequenceDisplay();
+        break;
+
+    case GameState::GetUserInput:
+        checkUserInput();
+        break;
+
+    case GameState::WaitInputDelay:
+        if (hasElapsed(inputDelayStart, Config::INPUT_FEEDBACK_TIME))
+        {
+            whadda.clearLEDs();
+            setState(GameState::GetUserInput);
+        }
+        break;
+
+    case GameState::Error:
+        if (hasElapsed(errorDelayStart, Config::ERROR_DISPLAY_TIME))
+        {
+            whadda.clearDisplay();
+            resetSequenceDisplay();
+            update7SegmentDisplay();
+            setState(GameState::DisplaySequence);
+        }
+        break;
+
+    case GameState::RoundWinCheck:
+        handleRoundWin();
+        break;
+
+    case GameState::WaitNextLevel:
+        if (hasElapsed(inputDelayStart, Config::INPUT_FEEDBACK_TIME))
+        {
+            whadda.clearLEDs();
+        }
+        if (hasElapsed(levelDelayStart, Config::ROUND_CONFIG_BASE_DELAY))
+        {
+            seqLength = getSequenceLengthForLevel(level);
+            generateSequence(seqLength);
+            resetSequenceDisplay();
+            update7SegmentDisplay();
+            setState(GameState::DisplaySequence);
+        }
+        break;
+
+    case GameState::Finish:
+        if (hasElapsed(finishDelayStart, Config::FINISH_DISPLAY_TIME))
+        {
+            whadda.clearDisplay();
+            whadda.clearLEDs();
+            challengeComplete = true;
+            setState(GameState::Idle);
+        }
+        break;
+    }
+    return challengeComplete;
+}
+
+// ---------------------------------------------------------------------------
+// Global instance and runner function
+// ---------------------------------------------------------------------------
+MemoryGame game;
+
+bool runGame1()
+{
+    return game.run();
 }

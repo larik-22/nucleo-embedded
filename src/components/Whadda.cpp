@@ -171,6 +171,11 @@ void Whadda::clearDisplay()
     }
 }
 
+void Whadda::clearLEDs()
+{
+    tm.setLEDs(0x0000);
+}
+
 /**
  * @brief Initiates a non-blocking LED blink effect.
  *

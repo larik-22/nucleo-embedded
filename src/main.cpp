@@ -8,16 +8,16 @@
  *  - Win/Lose condition
  */
 
-#include <pins.h>
+#include <Pins.h>
 #include <Arduino.h>
 #include <LiquidCrystal_I2C.h>
 #include "Buzzer.h"
 #include "RGBLed.h"
 #include "Whadda.h"
-#include "game1.h"
-#include "game2.h"
-#include "game3.h"
-#include "game4.h"
+#include "Game1.h"
+#include "Game2.h"
+#include "Game3.h"
+#include "Game4.h"
 
 // -----------------------------------------------------------------------------
 // Component Instances
@@ -140,7 +140,7 @@ void loop()
     {
     case 1:
       // Use the non-blocking update version of Game 2.
-      challengeFinished = runGame1();
+      challengeFinished = runGame2();
 
       rgbLed.update();
       whadda.update();
