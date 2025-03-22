@@ -291,6 +291,7 @@ void MemoryGame::checkUserInput()
 //
 void MemoryGame::handleRoundWin()
 {
+    rgbLed.off();
     if (level >= MemoryGameConfig::MAX_LEVEL)
     {
         whadda.clearDisplay();
@@ -357,11 +358,18 @@ bool MemoryGame::run()
         }
         break;
     case GameState::Error:
+        rgbLed.blinkColor(255, 0, 0, 3);
+        showTimer = false;
+        lcd.setCursor(0, 0);
+        lcd.print("Watch carefully!");
         if (hasElapsed(errorDelayStart, MemoryGameConfig::ERROR_DISPLAY_TIME))
         {
+            lcd.clear();
+            showTimer = true;
             whadda.clearDisplay();
             resetSequenceDisplay();
             update7SegmentDisplay();
+            rgbLed.off();
             setState(GameState::DisplaySequence);
         }
         break;

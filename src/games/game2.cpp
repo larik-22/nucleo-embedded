@@ -5,9 +5,6 @@
 #include "Whadda.h"
 #include "Game2.h"
 
-// TODO - Clean up includes and external references
-// TODO - documentation
-
 // External hardware interfaces
 extern LiquidCrystal_I2C lcd;
 extern RGBLed rgbLed;
@@ -48,15 +45,44 @@ void EscapeVelocity::initPotFilter()
 
 void EscapeVelocity::generateVelocityRange(int gateLevel, int &minVel, int &maxVel)
 {
-    long maxPossible = 1023L * gateLevel;
+    // Compute a non-linear maximum possible value that scales with gate level.
+    long baseMax = 1023L;
+    // Adding an extra term to make the maximum grow non-linearly.
+    long maxPossible = baseMax * gateLevel + (long)(50 * pow(gateLevel, 1.5));
     if (maxPossible < 100)
         maxPossible = 100;
-    long center = random(50, maxPossible - 50);
-    const int halfRange = 30;
+
+    // Compute a normalized difficulty factor (0 at level 1, 1 at final level)
+    float difficultyFactor = (float)gateLevel / (float)EscVelocityConfig::TOTAL_GATES;
+
+    // Generate a random offset, but later blend it with the target mid–point.
+    long randomOffset = random(50, maxPossible - 50);
+    long targetMid = maxPossible / 2;
+    // Blend the random offset and the mid point based on difficulty: higher levels lean more to the center.
+    long center = (long)((1.0f - difficultyFactor) * randomOffset + difficultyFactor * targetMid);
+
+    // Compute a dynamic window width:
+    // Base window increases with level difficulty using a combination of linear and logarithmic factors.
+    int baseWindow = 30;
+    float windowFactor = 1.0f + difficultyFactor * 2.0f; // More difficult levels have a larger multiplier.
+    int dynamicWindow = (int)(baseWindow * windowFactor + 10 * log(gateLevel + 1));
+    const int halfRange = dynamicWindow;
+
+    // Set minimum and maximum, ensuring they are within bounds.
     minVel = center - halfRange;
     maxVel = center + halfRange;
     if (minVel < 0)
         minVel = 0;
+    if (maxVel > maxPossible)
+        maxVel = maxPossible;
+
+    // Debug output
+    Serial.print("[Gate ");
+    Serial.print(gateLevel);
+    Serial.print("] Range: ");
+    Serial.print(minVel);
+    Serial.print(" - ");
+    Serial.println(maxVel);
 }
 
 void EscapeVelocity::updateGateDisplays(int gateLevel, int potValue)
@@ -114,13 +140,7 @@ bool EscapeVelocity::updateGateAttempt(int gateLevel)
         lastBeep = now;
         wasOutOfRange = true;
         blinkState = false;
-        // Debug output
-        Serial.print("[Gate ");
-        Serial.print(gateLevel);
-        Serial.print("] Range: ");
-        Serial.print(minVel);
-        Serial.print(" - ");
-        Serial.println(maxVel);
+
         gateState = GateAttemptState::Loop;
         return false;
 
@@ -288,6 +308,7 @@ bool EscapeVelocity::run()
     case EscVelocityState::FailedPause:
         if (hasElapsed(stateStart, EscVelocityConfig::FAILED_PAUSE_DURATION))
         {
+            gateState = GateAttemptState::Init;
             state = EscVelocityState::GameLoop;
         }
         break;
@@ -311,11 +332,14 @@ bool EscapeVelocity::run()
             lcd.clear();
             currentGate = 1;
             lives = EscVelocityConfig::STARTING_LIVES;
-            state = EscVelocityState::GameLoop;
+            // Reset the gate attempt state here as well.
+            gateState = GateAttemptState::Init;
             Serial.println("SHOULD SET LIVES TO: " + String(lives));
             setWhaddaLives(lives);
             showTimer = true;
+            state = EscVelocityState::GameLoop;
         }
+
         break;
 
     case EscVelocityState::Finished:

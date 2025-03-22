@@ -6,13 +6,13 @@
 
 namespace EscVelocityConfig
 {
-    constexpr int TOTAL_GATES = 1;                // Number of gates to pass
+    constexpr int TOTAL_GATES = 5;                // Number of gates to pass
     constexpr int STARTING_LIVES = 3;             // Initial lives
     constexpr unsigned long GATE_TIME_MS = 10000; // Allowed time per gate
     constexpr unsigned long IN_RANGE_MS = 2500;   // Must stay in range for this duration
     constexpr unsigned long BEEP_INTERVAL = 250;  // Gap between short beeps (ms)
     constexpr float ALPHA = 0.1f;                 // Exponential smoothing factor
-    constexpr int TOLERANCE = 5;                  // Threshold to reduce flicker issues
+    constexpr int TOLERANCE = 10;                 // Threshold to reduce flicker issues
 
     // State durations
     constexpr unsigned long INTRO_DURATION = 1500;

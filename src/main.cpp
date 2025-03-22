@@ -61,6 +61,7 @@ void setup()
 
   // Initialize start button
   pinMode(BTN_PIN, INPUT_PULLUP);
+  randomSeed(analogRead(POT_PIN));
 
   // Initialize Buzzer and RGB LED
   buzzer.begin();
@@ -191,8 +192,10 @@ void runChallenges()
   {
   case 1:
   {
-    static EscapeVelocity escapeVelocity;
-    challengeFinished = escapeVelocity.run();
+    static MemoryGame memoryGame;
+    challengeFinished = memoryGame.run();
+    // static EscapeVelocity escapeVelocity;
+    // challengeFinished = escapeVelocity.run();
     if (challengeFinished)
     {
       currentChallenge++;
@@ -205,8 +208,10 @@ void runChallenges()
 
   case 2:
   {
-    static MemoryGame memoryGame;
-    challengeFinished = memoryGame.run();
+    static EscapeVelocity escapeVelocity;
+    challengeFinished = escapeVelocity.run();
+    // static MemoryGame memoryGame;
+    // challengeFinished = memoryGame.run();
     if (challengeFinished)
     {
       currentChallenge++;
