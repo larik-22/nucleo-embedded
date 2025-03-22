@@ -4,9 +4,13 @@
 #include "BaseGame.h"
 #include <Arduino.h>
 
-// ---------------------------------------------------------------------------
-// Configuration Constants for MemoryGame
-// ---------------------------------------------------------------------------
+/**
+ * @brief Configuration constants for the Memory Game.
+ *
+ * This namespace contains all the configuration parameters for the Memory Game,
+ * including maximum levels, timing constants, LED configurations, and tone parameters.
+ * These constants are used throughout the game logic to control the behavior of the game.
+ */
 namespace MemoryGameConfig
 {
     constexpr int MAX_LEVEL = 8;
@@ -36,14 +40,24 @@ namespace MemoryGameConfig
     constexpr unsigned long START_ANIM_INTERVAL = 200;
 }
 
+/**
+ * @brief Frequencies for the tones used in the game.
+ *
+ * This namespace contains the frequency values for each LED in the game.
+ * These frequencies are used to generate tones corresponding to the LEDs.
+ */
 namespace Frequencies
 {
     constexpr int ledFrequencies[MemoryGameConfig::NUM_LEDS] = {220, 262, 294, 330, 349, 392, 440, 494};
 }
 
-// ---------------------------------------------------------------------------
-// Enumerations for the State Machine
-// ---------------------------------------------------------------------------
+/**
+ * @brief Game states for the Memory Game.
+ *
+ * This enum class defines the various states that the game can be in.
+ * Each state represents a specific phase of the game, such as initialization,
+ * displaying sequences, waiting for user input, and handling errors.
+ */
 enum class GameState
 {
     Idle,
@@ -59,12 +73,26 @@ enum class GameState
     Finish
 };
 
+/**
+ * @brief Sequence phases for the Memory Game.
+ *
+ * This enum class defines the phases of the sequence display.
+ * Each phase represents a specific action, such as turning on or off the LEDs.
+ * These phases are used to control the timing and behavior of the LED sequence.
+ */
 enum class SeqPhase
 {
     LedOn,
     LedOff
 };
 
+/**
+ * @brief Start animation phases for the Memory Game.
+ *
+ * This enum class defines the phases of the start animation.
+ * Each phase represents a specific action, such as blinking LEDs on or off.
+ * These phases are used to control the timing and behavior of the start animation.
+ */
 enum class StartAnimPhase
 {
     Idle,
@@ -73,9 +101,13 @@ enum class StartAnimPhase
     Done
 };
 
-// ---------------------------------------------------------------------------
-// MemoryGame Class Definition (inherits from BaseGame)
-// ---------------------------------------------------------------------------
+/**
+ * @brief MemoryGame class for the memory mole game challenge.
+ *
+ * This class implements the game logic, including state management,
+ * sequence generation, user input handling, and display updates.
+ * It inherits from the BaseGame class to provide a common interface for all games.
+ */
 class MemoryGame : public BaseGame
 {
 public:
@@ -127,4 +159,4 @@ private:
     void handleRoundWin();
 };
 
-#endif // MEMORY_GAME_H
+#endif

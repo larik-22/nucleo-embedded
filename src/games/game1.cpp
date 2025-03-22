@@ -5,6 +5,9 @@
 #include "Whadda.h"
 #include "Game1.h"
 
+// TODO - Clean up includes
+// TODO - documentation
+
 // External hardware references (defined elsewhere)
 extern Buzzer buzzer;
 extern RGBLed rgbLed;
@@ -383,9 +386,9 @@ bool MemoryGame::run()
     return challengeComplete;
 }
 
-MemoryGame game;
+MemoryGame memoryGame;
 
 bool run()
 {
-    return game.run();
+    return memoryGame.run();
 }

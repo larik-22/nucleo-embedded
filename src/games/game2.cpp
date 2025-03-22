@@ -5,6 +5,9 @@
 #include "Whadda.h"
 #include "Game2.h"
 
+// TODO - Clean up includes and external references
+// TODO - documentation
+
 // External hardware interfaces
 extern LiquidCrystal_I2C lcd;
 extern RGBLed rgbLed;
@@ -327,9 +330,9 @@ bool EscapeVelocity::run()
 }
 
 // Global instance and runner function
-EscapeVelocity game2;
+EscapeVelocity escVelocity;
 
 bool runGame2()
 {
-    return game2.run();
+    return escVelocity.run();
 }

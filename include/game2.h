@@ -2,13 +2,11 @@
 #define MEMORY_GAME2_H
 
 #include "BaseGame.h"
-#include "Pins.h" // For POT_PIN
-
-extern bool showTimer;
+#include "Pins.h"
 
 namespace EscVelocityConfig
 {
-    constexpr int TOTAL_GATES = 1;                // Number of gates to pass
+    constexpr int TOTAL_GATES = 4;                // Number of gates to pass
     constexpr int STARTING_LIVES = 3;             // Initial lives
     constexpr unsigned long GATE_TIME_MS = 10000; // Allowed time per gate
     constexpr unsigned long IN_RANGE_MS = 2500;   // Must stay in range for this duration
@@ -16,6 +14,7 @@ namespace EscVelocityConfig
     constexpr float ALPHA = 0.1f;                 // Exponential smoothing factor
     constexpr int TOLERANCE = 5;                  // Threshold to reduce flicker issues
 
+    // State durations
     constexpr unsigned long INTRO_DURATION = 1500;
     constexpr unsigned long SUCCESS_BEEP_DURATION = 300;
     constexpr unsigned long FAILED_PAUSE_DURATION = 1000;
@@ -49,7 +48,7 @@ class EscapeVelocity : public BaseGame
 public:
     EscapeVelocity();
     void init();
-    bool run() override; // Non-blocking main loop; returns true when the game is finished
+    bool run() override;
 
 private:
     // Overall game state
@@ -80,11 +79,11 @@ private:
     bool isPotInRange(int potValue, int minVel, int maxVel);
     void setWhaddaLives(int lives);
 
-    // Gate attempt update (non-blocking)
+    // Gate attempt update
     bool updateGateAttempt(int gateLevel);
 
     // Restart effect helper
     void runRestartEffect();
 };
 
-#endif // MEMORY_GAME2_H
+#endif
