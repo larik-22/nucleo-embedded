@@ -36,7 +36,8 @@ EscapeVelocity::EscapeVelocity() : state(EscVelocityState::Init),
 int EscapeVelocity::getSmoothedPotValue(int gateLevel)
 {
     int raw = analogRead(POT_PIN);
-    potFilter = (1.0f - EscVelocityConfig::ALPHA) * potFilter + EscVelocityConfig::ALPHA * (float)raw;
+    int mapped = constrain(map(raw, 300, 1023, 0, 1023), 0, 1023);
+    potFilter = (1.0f - EscVelocityConfig::ALPHA) * potFilter + EscVelocityConfig::ALPHA * (float)mapped;
     return (int)(potFilter * gateLevel);
 }
 

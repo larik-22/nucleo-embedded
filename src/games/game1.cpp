@@ -12,6 +12,7 @@
 extern Buzzer buzzer;
 extern RGBLed rgbLed;
 extern Whadda whadda;
+extern LiquidCrystal_I2C lcd;
 
 //
 // Constructor and Initialization
@@ -44,6 +45,10 @@ void MemoryGame::init()
     if (!challengeInitialized)
     {
         buzzer.playRoundStartMelody();
+        lcd.setCursor(0, 0);
+        lcd.print("Memory Mole!");
+        lcd.setCursor(0, 1);
+        lcd.print("Good luck");
         challengeInitialized = true;
         challengeComplete = false;
         whadda.clearDisplay();
@@ -324,6 +329,8 @@ bool MemoryGame::run()
     case GameState::StartAnimation:
         if (updateStartAnimation())
         {
+            lcd.clear();
+            showTimer = true;
             whadda.clearDisplay();
             whadda.clearLEDs();
             setState(GameState::Pause);

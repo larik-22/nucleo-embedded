@@ -6,7 +6,7 @@
 
 namespace EscVelocityConfig
 {
-    constexpr int TOTAL_GATES = 4;                // Number of gates to pass
+    constexpr int TOTAL_GATES = 1;                // Number of gates to pass
     constexpr int STARTING_LIVES = 3;             // Initial lives
     constexpr unsigned long GATE_TIME_MS = 10000; // Allowed time per gate
     constexpr unsigned long IN_RANGE_MS = 2500;   // Must stay in range for this duration
