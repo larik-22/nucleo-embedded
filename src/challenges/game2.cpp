@@ -362,22 +362,13 @@ bool runGame2()
 
     case R2_RESTART_EFFECT:
     {
-        // Clean restart effect: blink LED and Whadda visuals without interfering with other states.
-        static bool blinkState = false;
-        static unsigned long lastBlink = 0;
+        // Clean restart effect: blink Whadda visuals without interfering with other states.
         const unsigned long BLINK_INTERVAL = 200;
         const unsigned long EFFECT_DURATION = 1500;
         unsigned long elapsed = millis() - stateStart;
 
         // Ensure timer updates are disabled during effect.
         showTimer = false;
-
-        // Toggle blink state
-        if (millis() - lastBlink >= BLINK_INTERVAL)
-        {
-            blinkState = !blinkState;
-            lastBlink = millis();
-        }
 
         // Blink Whadda's LEDs.
         whadda.blinkLEDs(0xFF, 3, BLINK_INTERVAL);
@@ -392,15 +383,10 @@ bool runGame2()
 
         if (elapsed >= EFFECT_DURATION)
         {
-            currentGate = 1;
-            lives = STARTING_LIVES;
-            setWhaddaLives(lives);
+
             lcd.clear();
             lcd.setCursor(0, 0);
             lcd.print("Retrying...");
-            // Reset the restart effect static variables.
-            blinkState = false;
-            lastBlink = 0;
             stateStart = millis();
             state = R2_RETRY;
         }
@@ -411,6 +397,8 @@ bool runGame2()
         {
             lcd.clear();
             // show current lives
+            currentGate = 1;
+            lives = STARTING_LIVES;
             setWhaddaLives(lives);
             state = R2_GAME_LOOP;
             showTimer = true; // re-enable timer updates

@@ -140,7 +140,7 @@ void loop()
     {
     case 1:
       // Use the non-blocking update version of Game 2.
-      challengeFinished = runGame2();
+      challengeFinished = runGame1();
 
       rgbLed.update();
       whadda.update();
@@ -154,11 +154,17 @@ void loop()
       }
       break;
     case 2:
-      if (runGame1())
+      // Use the non-blocking update version of Game 2.
+      challengeFinished = runGame2();
+
+      rgbLed.update();
+      whadda.update();
+
+      if (challengeFinished)
       {
-        // todo: function to start next challenge
         currentChallenge++;
         lcd.clear();
+        // showTimer = false;
         lcd.print("Game 3 start");
       }
       break;

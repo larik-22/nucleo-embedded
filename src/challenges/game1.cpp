@@ -5,8 +5,7 @@
 #include "game1.h"
 
 // TODO clean up code (put in functions, remove debug prints, etc.)
-// TODO proper function docs
-// TODO creative aspect?
+// TODO: Make sure game is non-blocking and never uses delay(). Game-state mindset
 
 // ---------------------------------------------------------------------------
 // External references to utility objects from main.cpp
