@@ -353,11 +353,3 @@ bool EscapeVelocity::run()
     }
     return false;
 }
-
-// Global instance and runner function
-EscapeVelocity escVelocity;
-
-bool runGame2()
-{
-    return escVelocity.run();
-}

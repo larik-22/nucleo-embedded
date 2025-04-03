@@ -4,6 +4,7 @@
 #include "Buzzer.h"
 #include "RGBLed.h"
 #include "Whadda.h"
+#include "Button.h"
 #include "Game1.h"
 #include "Game2.h"
 #include "Game3.h"
@@ -16,6 +17,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 RGBLed rgbLed(RGB_RED, RGB_GREEN, RGB_BLUE);
 Buzzer buzzer(BUZZER_PIN);
 Whadda whadda(STB_PIN, CLK_PIN, DIO_PIN);
+Button button(BTN_PIN, 50);
 
 // -----------------------------------------------------------------------------
 // Global Variables for Game State
@@ -24,7 +26,7 @@ bool showTimer = true;
 bool gameStarted = false;
 bool allChallengesComplete = false;
 unsigned long gameStartTime = 0;
-const unsigned long GAME_DURATION = 600000UL; // e.g., 10 minutes
+const unsigned long GAME_DURATION = 600000UL; // 10 minutes
 
 // -----------------------------------------------------------------------------
 // Function Declarations
@@ -121,28 +123,20 @@ void loop()
  */
 void checkGameStart()
 {
-  static unsigned long btnPressStart = 0;
+  static bool prevButtonState = false;
+  bool currentState = button.readWithDebounce();
 
-  if (digitalRead(BTN_PIN) == LOW)
-  { // Button is active LOW
-    if (btnPressStart == 0)
-    {
-      btnPressStart = millis();
-    }
-    else if (millis() - btnPressStart > 100)
-    { // Valid press threshold
-      gameStarted = true;
-      gameStartTime = millis(); // Record start time
-      lcd.clear();
-      showTimer = false;
-      lcd.print("Game Started!");
-      btnPressStart = 0; // Reset for future use
-    }
-  }
-  else
+  // Detect the transition from not pressed to pressed
+  if (!prevButtonState && currentState)
   {
-    btnPressStart = 0;
+    gameStarted = true;
+    gameStartTime = millis(); // Record start time
+    lcd.clear();
+    showTimer = false;
+    lcd.print("Game Started!");
   }
+
+  prevButtonState = currentState;
 }
 
 /**
@@ -192,8 +186,10 @@ void runChallenges()
   {
   case 1:
   {
-    static MemoryGame memoryGame;
-    challengeFinished = memoryGame.run();
+    static ArcheryChallenge archeryChallenge;
+    challengeFinished = archeryChallenge.run();
+    // static MemoryGame memoryGame;
+    // challengeFinished = memoryGame.run();
     // static EscapeVelocity escapeVelocity;
     // challengeFinished = escapeVelocity.run();
     if (challengeFinished)
@@ -208,10 +204,10 @@ void runChallenges()
 
   case 2:
   {
-    static EscapeVelocity escapeVelocity;
-    challengeFinished = escapeVelocity.run();
-    // static MemoryGame memoryGame;
-    // challengeFinished = memoryGame.run();
+    // static EscapeVelocity escapeVelocity;
+    // challengeFinished = escapeVelocity.run();
+    static MemoryGame memoryGame;
+    challengeFinished = memoryGame.run();
     if (challengeFinished)
     {
       currentChallenge++;
@@ -223,10 +219,17 @@ void runChallenges()
 
   case 3:
   {
-    if (runGame3())
+    // static ArcheryChallenge archeryChallenge;
+    // challengeFinished = archeryChallenge.run();
+    static EscapeVelocity escapeVelocity;
+    challengeFinished = escapeVelocity.run();
+
+    if (challengeFinished)
     {
+      // Move to final challenge (or end game if none)
       currentChallenge++;
       lcd.clear();
+      showTimer = false;
       lcd.print("Game 4 start");
     }
   }
@@ -234,15 +237,14 @@ void runChallenges()
 
   case 4:
   {
-    if (runGame4())
-    {
-      allChallengesComplete = true;
-    }
+    // todo
+    allChallengesComplete = true;
   }
   break;
 
   default:
     // No further challenges
+    // TODO: add reset functionality
     break;
   }
 }
@@ -278,6 +280,7 @@ void handleGameOver()
   lcd.print("Game Over!");
   while (1)
   {
-    // Remain in the game-over state (or add reset logic here)
+    // Remain in the game-over state
+    // TODO: add reset functionality
   }
 }
