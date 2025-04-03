@@ -5,6 +5,9 @@
 #include "Whadda.h"
 #include "Game2.h"
 
+// TODO: comments
+// TODO: more creativity
+
 // External hardware interfaces
 extern LiquidCrystal_I2C lcd;
 extern RGBLed rgbLed;

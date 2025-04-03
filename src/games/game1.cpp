@@ -5,6 +5,10 @@
 #include "Whadda.h"
 #include "Game1.h"
 
+// TODO: button class usage
+// TODO: comments
+// TODO: fix pot value being too close every time
+
 // External hardware references (defined elsewhere)
 extern Buzzer buzzer;
 extern RGBLed rgbLed;

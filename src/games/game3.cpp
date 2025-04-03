@@ -3,13 +3,19 @@
 #include "Buzzer.h"
 #include "RGBLed.h"
 #include "Whadda.h"
+#include "Button.h"
 #include "Game3.h"
+
+// TODO: Correct button class usage instead of pin
+// TODO: Remove disappear target effect (useless) –≥ and add another effect instead
+// TODO: Split more into functions
 
 // External hardware interfaces (declared in main.cpp)
 extern LiquidCrystal_I2C lcd;
 extern RGBLed rgbLed;
 extern Buzzer buzzer;
 extern Whadda whadda;
+extern Button button;
 extern bool showTimer;
 
 ArcheryChallenge::ArcheryChallenge()
@@ -134,15 +140,12 @@ bool ArcheryChallenge::run()
         // Wait for a short duration after a successful hit
         if (millis() - stateStart >= ArcheryConfig::SUCCESS_DISPLAY_DURATION)
         {
-            // Turn off any success indicators and proceed
             rgbLed.off();
             lcd.clear();
-            // Advance to the next round
             currentRound++;
-            // Re-enable timer for the next round's gameplay
             showTimer = true;
-            // Reset sub-state for the next round attempt
             roundState = RoundAttemptState::Init;
+
             // If we just finished the final round, mark as finished; otherwise continue game loop
             if (currentRound > ArcheryConfig::TOTAL_ROUNDS)
             {
@@ -160,7 +163,6 @@ bool ArcheryChallenge::run()
         runRestartEffect();
         if (millis() - stateStart >= ArcheryConfig::RESTART_EFFECT_DURATION)
         {
-            // After the effect, inform the player of retry and move to Retry state
             lcd.clear();
             lcd.setCursor(0, 0);
             showTimer = false;
@@ -195,7 +197,6 @@ bool ArcheryChallenge::run()
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("Challenge Done!");
-        // Play win melody and turn off RGB LED
         buzzer.playWinMelody();
         rgbLed.off();
         Serial.println("Game 3 completed!");
@@ -214,10 +215,7 @@ bool ArcheryChallenge::run()
 bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
 {
     unsigned long now = millis();
-    // Read the current state of the fire button with debounce
     bool currentState = digitalRead(BTN_PIN) == LOW ? true : false;
-    // If a debounce utility is available (Button class), you could use:
-    // bool currentState = button.readWithDebounce();
 
     switch (roundState)
     {
@@ -327,6 +325,7 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
                 }
             }
         }
+
         if (currentEffect == ArcheryEffect::Disappear)
         {
             // Toggle target visibility (LED 7) at set intervals (mostly visible, brief off)
@@ -336,7 +335,7 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
                 {
                     targetVisible = false;
                     lastEffectToggle = now;
-                    whadda.setLED(7, false); // target disappears
+                    whadda.setLED(7, false);
                 }
             }
             else
@@ -345,7 +344,7 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
                 {
                     targetVisible = true;
                     lastEffectToggle = now;
-                    whadda.setLED(7, true); // target reappears
+                    whadda.setLED(7, true);
                 }
             }
         }
@@ -382,23 +381,18 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
             {
                 // *** Target HIT ***
                 roundResult = true;
-                // Provide immediate visual feedback for hit
-                rgbLed.setColor(0, 255, 0); // Green LED for hit
-                // Prepare to exit round: reset for next round
+                rgbLed.setColor(0, 255, 0);
                 roundState = RoundAttemptState::Init;
-                return true; // Round ended successfully
+                return true;
             }
             else
             {
                 // *** Missed the target ***
-                // Show feedback on LCD about the miss
                 lcd.clear();
                 lcd.setCursor(0, 0);
                 if (shieldBlocked)
                 {
-                    // Arrow was on target but blocked by magic shield
                     lcd.print("Blocked by Shield!");
-                    // Sound effect for shield block (sharp tone)
                     buzzer.playTone(1000, 100);
                 }
                 else
@@ -412,7 +406,6 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
                     {
                         lcd.print("Too low!");
                     }
-                    // Play a low-pitched tone for a miss
                     buzzer.playTone(300, 150);
                 }
                 // Set LED feedback for miss (red for normal miss, blue already indicated for shield)
@@ -426,15 +419,14 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
                     // No arrows remaining – round failed
                     roundResult = false;
                     roundState = RoundAttemptState::Init;
-                    return true; // Round ended (failure)
+                    return true;
                 }
                 else
                 {
                     // Arrows remain – go into feedback pause before next shot
-                    showTimer = false; // Hide timer during feedback message
+                    showTimer = false;
                     feedbackStart = now;
                     roundState = RoundAttemptState::Feedback;
-                    // Note: We do not return true here because round is continuing
                 }
             }
         }
@@ -448,7 +440,6 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
         // ** Pausing to show feedback after a miss **
         if (millis() - feedbackStart >= ArcheryConfig::FEEDBACK_DURATION)
         {
-            // Feedback display time elapsed, clear message and resume aiming
             lcd.clear();
             lcd.setCursor(0, 0);
             lcd.print("Round ");
@@ -459,7 +450,6 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
             showTimer = true;
             roundState = RoundAttemptState::Playing;
         }
-        // During feedback pause, ignore any button presses (player should wait)
         prevButtonState = currentState;
         return false;
     }
