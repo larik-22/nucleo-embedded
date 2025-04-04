@@ -10,6 +10,8 @@
 #include "Game3.h"
 #include "Game4.h"
 
+// TODO: Globals.h with extern declaraions of Components
+
 // -----------------------------------------------------------------------------
 // Component Instances
 // -----------------------------------------------------------------------------
@@ -17,7 +19,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 RGBLed rgbLed(RGB_RED, RGB_GREEN, RGB_BLUE);
 Buzzer buzzer(BUZZER_PIN);
 Whadda whadda(STB_PIN, CLK_PIN, DIO_PIN);
-Button button(BTN_PIN, 50);
+Button button(BTN_PIN, 25);
 
 // -----------------------------------------------------------------------------
 // Global Variables for Game State
@@ -186,10 +188,12 @@ void runChallenges()
   {
   case 1:
   {
-    static ArcheryChallenge archeryChallenge;
-    challengeFinished = archeryChallenge.run();
-    // static MemoryGame memoryGame;
-    // challengeFinished = memoryGame.run();
+    static GravityLander gravityLander;
+    challengeFinished = gravityLander.run();
+    //  static ArcheryChallenge archeryChallenge;
+    //  challengeFinished = archeryChallenge.run();
+    //    static MemoryGame memoryGame;
+    //    challengeFinished = memoryGame.run();
     // static EscapeVelocity escapeVelocity;
     // challengeFinished = escapeVelocity.run();
     if (challengeFinished)
