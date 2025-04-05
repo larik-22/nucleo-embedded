@@ -188,14 +188,14 @@ void runChallenges()
   {
   case 1:
   {
-    static GravityLander gravityLander;
-    challengeFinished = gravityLander.run();
-    //  static ArcheryChallenge archeryChallenge;
-    //  challengeFinished = archeryChallenge.run();
-    //    static MemoryGame memoryGame;
-    //    challengeFinished = memoryGame.run();
-    // static EscapeVelocity escapeVelocity;
-    // challengeFinished = escapeVelocity.run();
+    // static GravityLander gravityLander;
+    // challengeFinished = gravityLander.run();
+    static ArcheryChallenge archeryChallenge;
+    challengeFinished = archeryChallenge.run();
+    //     static MemoryGame memoryGame;
+    //     challengeFinished = memoryGame.run();
+    //  static EscapeVelocity escapeVelocity;
+    //  challengeFinished = escapeVelocity.run();
     if (challengeFinished)
     {
       currentChallenge++;

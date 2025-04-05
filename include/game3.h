@@ -28,8 +28,8 @@ namespace ArcheryConfig
     // Magical effect timing
     constexpr unsigned long SHIELD_UP_MS = 500;        // Shield active duration (when target invulnerable)
     constexpr unsigned long SHIELD_DOWN_MS = 1500;     // Shield inactive duration (target vulnerable)
-    constexpr unsigned long TARGET_VISIBLE_MS = 1500;  // Duration target stays visible (for disappearing effect)
-    constexpr unsigned long TARGET_INVISIBLE_MS = 300; // Duration target disappears (for disappearing effect)
+    constexpr unsigned long TARGET_VISIBLE_MS = 1000;  // Duration target stays visible (for disappearing effect)
+    constexpr unsigned long TARGET_INVISIBLE_MS = 500; // Duration target disappears (for disappearing effect)
 }
 
 /**

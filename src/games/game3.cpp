@@ -117,6 +117,8 @@ bool ArcheryChallenge::run()
             showTimer = false;
             lcd.print("Hit! Round ");
             lcd.print(currentRound);
+            lcd.setCursor(0, 1);
+            lcd.print("Target ");
             lcd.print(" clear!");
             // Play a celebratory tone for the hit
             buzzer.playTone(1000, 150);
@@ -362,6 +364,7 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
 
             Serial.println("Arrow fired! Pot value: " + String(potValue) + ", Hit: " + String(hit));
 
+            // Process hit with shield effect
             bool shieldBlocked = false;
             if (currentEffect == ArcheryEffect::Shield && shieldActive)
             {
@@ -395,7 +398,7 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
                     lcd.print("Blocked by Shield!");
                     buzzer.playTone(1000, 100);
                 }
-                else
+                else if (targetVisible)
                 {
                     // Indicate if the shot was too high or too low
                     if (potValue > targetValue)
@@ -408,6 +411,12 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
                     }
                     buzzer.playTone(300, 150);
                 }
+                else
+                {
+                    lcd.print("Target invisible!");
+                    buzzer.playTone(300, 150);
+                }
+
                 // Set LED feedback for miss (red for normal miss, blue already indicated for shield)
                 if (!shieldBlocked)
                 {
