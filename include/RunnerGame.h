@@ -30,8 +30,10 @@ namespace RunnerGameConfig
     constexpr int INITIAL_CACTUS_POS = 15;
     constexpr int GROUND_ROW = 1;
     constexpr int JUMP_ROW = 0;
-    constexpr int MIN_JUMP_DURATION = 200; // ms
-    constexpr int NUM_OBSTACLE_TYPES = 3;  // 0 = bird, 1 = cactus type 1, 2 = cactus type 2
+    constexpr int MIN_JUMP_DURATION = 200;  // ms
+    constexpr int NUM_OBSTACLE_TYPES = 3;   // 0 = bird, 1 = cactus type 1, 2 = cactus type 2
+    constexpr int ANIMATION_INTERVAL = 150; // ms
+    constexpr int ANIMATION_STATES = 3;     // Number of animation states (0, 1, 2)
 
     // Speed settings
     constexpr unsigned long INITIAL_GAME_INTERVAL = 200;    // ms
@@ -41,7 +43,7 @@ namespace RunnerGameConfig
 
     // Timing constants (ms)
     constexpr unsigned long JUMP_DURATION = 600;
-    constexpr unsigned long WIN_TIME = 60000;     // 1 minute
+    constexpr unsigned long WIN_TIME = 4000;      // 1 minute
     constexpr unsigned long RESTART_DELAY = 2000; // 2 seconds delay before auto-restart
 
     // Game messages
@@ -72,7 +74,12 @@ namespace RunnerGameConfig
     constexpr int SCORE_LED_GREEN = 0;
     constexpr int SCORE_LED_BLUE = 255;
 
-    constexpr int LED_DURATION = 200; // ms
+    constexpr int WIN_LED_RED = 255;
+    constexpr int WIN_LED_GREEN = 215;
+    constexpr int WIN_LED_BLUE = 0;
+
+    constexpr int LED_DURATION = 200;  // ms
+    constexpr int WIN_BLINK_COUNT = 3; // Number of times to blink for win effect
 }
 
 /**
@@ -234,21 +241,15 @@ private:
     void showScoreFeedback();
 
     /**
+     * @brief Provides visual feedback for winning the game.
+     */
+    void showWinFeedback();
+
+    /**
      * @brief Updates the game speed based on elapsed time.
-s     * @param currentTime Current time in milliseconds.
+     * @param currentTime Current time in milliseconds.
      */
     void updateGameSpeed(unsigned long currentTime);
-
-    /**
-     * @brief Clears the previous positions of game objects.
-     */
-    void clearPreviousPositions();
-
-    /**
-     * @brief Selects a random obstacle type.
-     * @return The selected obstacle type.
-     */
-    ObstacleType selectRandomObstacleType();
 };
 
 #endif

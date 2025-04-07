@@ -17,87 +17,18 @@ extern bool showTimer;
 // Custom Icons for Llama and Cactus
 // -------------------------------------------------------------------
 
-// Llama standing (two parts)
-static byte llamaStandingPart1[8] = {
-    B00000,
-    B00000,
-    B00110, // Llama head
-    B00110,
-    B00111, // Llama neck
-    B00111,
-    B00011, // Llama body
-    B00011};
-static byte llamaStandingPart2[8] = {
-    B00111,
-    B00111,
-    B00111,
-    B00100,
-    B11100,
-    B11100,
-    B11000,
-    B11000};
+static byte llamaStandingPart1[8] = {B00000, B00000, B00110, B00110, B00111, B00111, B00011, B00011};
+static byte llamaStandingPart2[8] = {B00111, B00111, B00111, B00100, B11100, B11100, B11000, B11000};
 
-// Llama with right foot forward
-static byte llamaRightFootPart1[8] = {
-    B00000,
-    B00000,
-    B00110, // Llama head
-    B00110,
-    B00111, // Llama neck
-    B00111,
-    B00011, // Llama body
-    B00011};
-static byte llamaRightFootPart2[8] = {
-    B00111,
-    B00111,
-    B00111,
-    B00100,
-    B11100,
-    B11100,
-    B11000,
-    B00000 // Right foot forward
-};
+static byte llamaRightFootPart1[8] = {B00000, B00000, B00110, B00110, B00111, B00111, B00011, B00011};
+static byte llamaRightFootPart2[8] = {B00111, B00111, B00111, B00100, B11100, B11100, B11000, B00000};
 
-// Llama with left foot forward
-static byte llamaLeftFootPart1[8] = {
-    B00000,
-    B00000,
-    B00110, // Llama head
-    B00110,
-    B00111, // Llama neck
-    B00111,
-    B00011, // Llama body
-    B00000  // Left foot forward
-};
-static byte llamaLeftFootPart2[8] = {
-    B00111,
-    B00111,
-    B00111,
-    B00100,
-    B11100,
-    B11100,
-    B11000,
-    B11000};
+static byte llamaLeftFootPart1[8] = {B00000, B00000, B00110, B00110, B00111, B00111, B00011, B00000};
+static byte llamaLeftFootPart2[8] = {B00111, B00111, B00111, B00100, B11100, B11100, B11000, B11000};
 
 // Cactus (two parts)
-static byte cactusPart1[8] = {
-    B00000,
-    B00100,
-    B00100,
-    B10100,
-    B10100,
-    B11100,
-    B00100,
-    B00100};
-static byte cactusPart2[8] = {
-    B00100,
-    B00101,
-    B00101,
-    B10101,
-    B11111,
-    B00100,
-    B00100,
-    B00100};
+static byte cactusPart1[8] = {B00000, B00100, B00100, B10100, B10100, B11100, B00100, B00100};
+static byte cactusPart2[8] = {B00100, B00101, B00101, B10101, B11111, B00100, B00100, B00100};
 
 RunnerGame::RunnerGame()
     : currentState(RunnerGameState::Idle),
@@ -125,14 +56,14 @@ void RunnerGame::init()
     lcd.clear();
 
     // Create custom characters
-    lcd.createChar(0, llamaStandingPart1);
-    lcd.createChar(1, llamaStandingPart2);
-    lcd.createChar(2, llamaRightFootPart1);
-    lcd.createChar(3, llamaRightFootPart2);
-    lcd.createChar(4, llamaLeftFootPart1);
-    lcd.createChar(5, llamaLeftFootPart2);
-    lcd.createChar(6, cactusPart1);
-    lcd.createChar(7, cactusPart2);
+    lcd.createChar(RunnerGameConfig::LLAMA_STANDING_PART1_ID, llamaStandingPart1);
+    lcd.createChar(RunnerGameConfig::LLAMA_STANDING_PART2_ID, llamaStandingPart2);
+    lcd.createChar(RunnerGameConfig::LLAMA_RIGHT_FOOT_PART1_ID, llamaRightFootPart1);
+    lcd.createChar(RunnerGameConfig::LLAMA_RIGHT_FOOT_PART2_ID, llamaRightFootPart2);
+    lcd.createChar(RunnerGameConfig::LLAMA_LEFT_FOOT_PART1_ID, llamaLeftFootPart1);
+    lcd.createChar(RunnerGameConfig::LLAMA_LEFT_FOOT_PART2_ID, llamaLeftFootPart2);
+    lcd.createChar(RunnerGameConfig::CACTUS_PART1_ID, cactusPart1);
+    lcd.createChar(RunnerGameConfig::CACTUS_PART2_ID, cactusPart2);
 
     // Display the welcome/idle screen on the LCD
     lcd.setCursor(0, 0);
@@ -179,6 +110,7 @@ void RunnerGame::showGameOver()
 
 void RunnerGame::showWinScreen()
 {
+    showWinFeedback();
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print(RunnerGameConfig::WIN_MSG_LINE1);
@@ -186,7 +118,7 @@ void RunnerGame::showWinScreen()
     lcd.print(RunnerGameConfig::WIN_MSG_LINE2);
     updateScoreDisplay(); // Final score display
 
-    // Play winning melody
+    // Play winning melody and show win feedback
     buzzer.playWinMelody();
 }
 
@@ -282,7 +214,17 @@ void RunnerGame::updateJumpState(unsigned long currentTime, bool jumpPressed)
 
 bool RunnerGame::updateGameObjects()
 {
+    unsigned long currentTime = millis();
+
+    // Update cactus position
     cactusPos--;
+
+    // Update animation state for running animation
+    if (!isJumping && currentTime - lastAnimationTime >= RunnerGameConfig::ANIMATION_INTERVAL)
+    {
+        lastAnimationTime = currentTime;
+        animationState = (animationState + 1) % RunnerGameConfig::ANIMATION_STATES;
+    }
 
     if (cactusPos < 0)
     {
@@ -307,37 +249,37 @@ void RunnerGame::drawGameGraphics()
     lcd.clear();
 
     lcd.setCursor(cactusPos, RunnerGameConfig::GROUND_ROW);
-    lcd.write(byte(6));
+    lcd.write(byte(RunnerGameConfig::CACTUS_PART1_ID));
     lcd.setCursor(cactusPos + 1, RunnerGameConfig::GROUND_ROW);
-    lcd.write(byte(7));
+    lcd.write(byte(RunnerGameConfig::CACTUS_PART2_ID));
 
     if (isJumping)
     {
         lcd.setCursor(0, llamaRow);
-        lcd.write(byte(0));
+        lcd.write(byte(RunnerGameConfig::LLAMA_STANDING_PART1_ID));
         lcd.setCursor(1, llamaRow);
-        lcd.write(byte(1));
+        lcd.write(byte(RunnerGameConfig::LLAMA_STANDING_PART2_ID));
     }
     else
     {
         lcd.setCursor(0, llamaRow);
         if (animationState == 0)
         {
-            lcd.write(byte(0));
+            lcd.write(byte(RunnerGameConfig::LLAMA_STANDING_PART1_ID));
             lcd.setCursor(1, llamaRow);
-            lcd.write(byte(1));
+            lcd.write(byte(RunnerGameConfig::LLAMA_STANDING_PART2_ID));
         }
         else if (animationState == 1)
         {
-            lcd.write(byte(2));
+            lcd.write(byte(RunnerGameConfig::LLAMA_RIGHT_FOOT_PART1_ID));
             lcd.setCursor(1, llamaRow);
-            lcd.write(byte(3));
+            lcd.write(byte(RunnerGameConfig::LLAMA_RIGHT_FOOT_PART2_ID));
         }
         else
         {
-            lcd.write(byte(4));
+            lcd.write(byte(RunnerGameConfig::LLAMA_LEFT_FOOT_PART1_ID));
             lcd.setCursor(1, llamaRow);
-            lcd.write(byte(5));
+            lcd.write(byte(RunnerGameConfig::LLAMA_LEFT_FOOT_PART2_ID));
         }
     }
 }
@@ -386,6 +328,12 @@ void RunnerGame::showScoreFeedback()
     rgbLed.off();
 }
 
+void RunnerGame::showWinFeedback()
+{
+    // Start blinking the LED with the win color
+    rgbLed.startBlinkColor(RunnerGameConfig::WIN_LED_RED, RunnerGameConfig::WIN_LED_GREEN, RunnerGameConfig::WIN_LED_BLUE, RunnerGameConfig::WIN_BLINK_COUNT);
+}
+
 void RunnerGame::updateGameSpeed(unsigned long currentTime)
 {
     // Check if it's time to increase the game speed
@@ -405,17 +353,6 @@ void RunnerGame::updateGameSpeed(unsigned long currentTime)
     }
 }
 
-void RunnerGame::clearPreviousPositions()
-{
-    // This method is no longer used in the simplified version
-}
-
-ObstacleType RunnerGame::selectRandomObstacleType()
-{
-    // This method is no longer used in the simplified version
-    return ObstacleType::CactusType1;
-}
-
 bool RunnerGame::run()
 {
     unsigned long currentTime = millis();
@@ -428,6 +365,9 @@ bool RunnerGame::run()
     {
         jumpButtonReleased = true;
     }
+
+    // Update RGB LED if it's blinking
+    rgbLed.update();
 
     switch (currentState)
     {
