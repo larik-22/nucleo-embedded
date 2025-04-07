@@ -1,0 +1,43 @@
+@startuml EmbeddedGamesArchitecture
+
+' Layout settings
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam monochrome true
+
+package "Components" {
+    class Button
+    class Buzzer
+    class RGBLed
+    class Whadda
+}
+
+package "Configuration" {
+    class Globals
+}
+
+package "Games" {
+    abstract class BaseGame
+    class RunnerGame
+    class ArcheryChallenge
+    class EscapeVelocity
+    class MemoryGame
+}
+
+' Base inheritance
+BaseGame <|-- RunnerGame
+BaseGame <|-- ArcheryChallenge
+BaseGame <|-- EscapeVelocity
+BaseGame <|-- MemoryGame
+
+' Globals dependencies
+Globals ..> Components
+
+' Game dependencies on Globals
+RunnerGame ..> Globals
+ArcheryChallenge ..> Globals
+EscapeVelocity ..> Globals
+MemoryGame ..> Globals
+
+
+@enduml
