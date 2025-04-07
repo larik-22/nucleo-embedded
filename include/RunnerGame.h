@@ -26,6 +26,69 @@ namespace RunnerGameConfig
     constexpr int CACTUS_PART1_ID = 6;
     constexpr int CACTUS_PART2_ID = 7;
 
+    // Custom character bitmaps
+    /**
+     * @brief Bitmap for the standing llama character (part 1)
+     * 
+     * Custom character bitmap for the first part of the standing llama.
+     * Used when the llama is not moving or during jumps.
+     */
+    inline byte llamaStandingPart1[8] = {B00000, B00000, B00110, B00110, B00111, B00111, B00011, B00011};
+
+    /**
+     * @brief Bitmap for the standing llama character (part 2)
+     * 
+     * Custom character bitmap for the second part of the standing llama.
+     * Used when the llama is not moving or during jumps.
+     */
+    inline byte llamaStandingPart2[8] = {B00111, B00111, B00111, B00100, B11100, B11100, B11000, B11000};
+
+    /**
+     * @brief Bitmap for the llama with right foot forward (part 1)
+     * 
+     * Custom character bitmap for the first part of the llama with right foot forward.
+     * Used in the running animation sequence.
+     */
+    inline byte llamaRightFootPart1[8] = {B00000, B00000, B00110, B00110, B00111, B00111, B00011, B00011};
+
+    /**
+     * @brief Bitmap for the llama with right foot forward (part 2)
+     * 
+     * Custom character bitmap for the second part of the llama with right foot forward.
+     * Used in the running animation sequence.
+     */
+    inline byte llamaRightFootPart2[8] = {B00111, B00111, B00111, B00100, B11100, B11100, B11000, B00000};
+
+    /**
+     * @brief Bitmap for the llama with left foot forward (part 1)
+     * 
+     * Custom character bitmap for the first part of the llama with left foot forward.
+     * Used in the running animation sequence.
+     */
+    inline byte llamaLeftFootPart1[8] = {B00000, B00000, B00110, B00110, B00111, B00111, B00011, B00000};
+
+    /**
+     * @brief Bitmap for the llama with left foot forward (part 2)
+     * 
+     * Custom character bitmap for the second part of the llama with left foot forward.
+     * Used in the running animation sequence.
+     */
+    inline byte llamaLeftFootPart2[8] = {B00111, B00111, B00111, B00100, B11100, B11100, B11000, B11000};
+
+    /**
+     * @brief Bitmap for the cactus obstacle (part 1)
+     * 
+     * Custom character bitmap for the first part of the cactus obstacle.
+     */
+    inline byte cactusPart1[8] = {B00000, B00100, B00100, B10100, B10100, B11100, B00100, B00100};
+
+    /**
+     * @brief Bitmap for the cactus obstacle (part 2)
+     * 
+     * Custom character bitmap for the second part of the cactus obstacle.
+     */
+    inline byte cactusPart2[8] = {B00100, B00101, B00101, B10101, B11111, B00100, B00100, B00100};
+
     // Game mechanics
     constexpr int INITIAL_CACTUS_POS = 15;
     constexpr int GROUND_ROW = 1;

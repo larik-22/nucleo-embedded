@@ -1,72 +1,6 @@
 #include "RunnerGame.h"
 #include "Globals.h"
 
-// -------------------------------------------------------------------
-// Custom Icons for Llama and Cactus
-// -------------------------------------------------------------------
-
-/**
- * @brief Bitmap for the standing llama character (part 1)
- * 
- * Custom character bitmap for the first part of the standing llama.
- * Used when the llama is not moving or during jumps.
- */
-static byte llamaStandingPart1[8] = {B00000, B00000, B00110, B00110, B00111, B00111, B00011, B00011};
-
-/**
- * @brief Bitmap for the standing llama character (part 2)
- * 
- * Custom character bitmap for the second part of the standing llama.
- * Used when the llama is not moving or during jumps.
- */
-static byte llamaStandingPart2[8] = {B00111, B00111, B00111, B00100, B11100, B11100, B11000, B11000};
-
-/**
- * @brief Bitmap for the llama with right foot forward (part 1)
- * 
- * Custom character bitmap for the first part of the llama with right foot forward.
- * Used in the running animation sequence.
- */
-static byte llamaRightFootPart1[8] = {B00000, B00000, B00110, B00110, B00111, B00111, B00011, B00011};
-
-/**
- * @brief Bitmap for the llama with right foot forward (part 2)
- * 
- * Custom character bitmap for the second part of the llama with right foot forward.
- * Used in the running animation sequence.
- */
-static byte llamaRightFootPart2[8] = {B00111, B00111, B00111, B00100, B11100, B11100, B11000, B00000};
-
-/**
- * @brief Bitmap for the llama with left foot forward (part 1)
- * 
- * Custom character bitmap for the first part of the llama with left foot forward.
- * Used in the running animation sequence.
- */
-static byte llamaLeftFootPart1[8] = {B00000, B00000, B00110, B00110, B00111, B00111, B00011, B00000};
-
-/**
- * @brief Bitmap for the llama with left foot forward (part 2)
- * 
- * Custom character bitmap for the second part of the llama with left foot forward.
- * Used in the running animation sequence.
- */
-static byte llamaLeftFootPart2[8] = {B00111, B00111, B00111, B00100, B11100, B11100, B11000, B11000};
-
-/**
- * @brief Bitmap for the cactus obstacle (part 1)
- * 
- * Custom character bitmap for the first part of the cactus obstacle.
- */
-static byte cactusPart1[8] = {B00000, B00100, B00100, B10100, B10100, B11100, B00100, B00100};
-
-/**
- * @brief Bitmap for the cactus obstacle (part 2)
- * 
- * Custom character bitmap for the second part of the cactus obstacle.
- */
-static byte cactusPart2[8] = {B00100, B00101, B00101, B10101, B11111, B00100, B00100, B00100};
-
 /**
  * @brief Constructor for RunnerGame
  * 
@@ -104,16 +38,6 @@ void RunnerGame::init()
     lcd.init();
     lcd.backlight();
     lcd.clear();
-
-    // Create custom characters
-    lcd.createChar(RunnerGameConfig::LLAMA_STANDING_PART1_ID, llamaStandingPart1);
-    lcd.createChar(RunnerGameConfig::LLAMA_STANDING_PART2_ID, llamaStandingPart2);
-    lcd.createChar(RunnerGameConfig::LLAMA_RIGHT_FOOT_PART1_ID, llamaRightFootPart1);
-    lcd.createChar(RunnerGameConfig::LLAMA_RIGHT_FOOT_PART2_ID, llamaRightFootPart2);
-    lcd.createChar(RunnerGameConfig::LLAMA_LEFT_FOOT_PART1_ID, llamaLeftFootPart1);
-    lcd.createChar(RunnerGameConfig::LLAMA_LEFT_FOOT_PART2_ID, llamaLeftFootPart2);
-    lcd.createChar(RunnerGameConfig::CACTUS_PART1_ID, cactusPart1);
-    lcd.createChar(RunnerGameConfig::CACTUS_PART2_ID, cactusPart2);
 
     // Display the welcome/idle screen on the LCD
     lcd.setCursor(0, 0);

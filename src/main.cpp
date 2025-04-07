@@ -63,6 +63,16 @@ void setup()
   lcd.clear();
   lcd.print("Escape Room!");
 
+  // Create custom characters for Runner Game
+  lcd.createChar(RunnerGameConfig::LLAMA_STANDING_PART1_ID, RunnerGameConfig::llamaStandingPart1);
+  lcd.createChar(RunnerGameConfig::LLAMA_STANDING_PART2_ID, RunnerGameConfig::llamaStandingPart2);
+  lcd.createChar(RunnerGameConfig::LLAMA_RIGHT_FOOT_PART1_ID, RunnerGameConfig::llamaRightFootPart1);
+  lcd.createChar(RunnerGameConfig::LLAMA_RIGHT_FOOT_PART2_ID, RunnerGameConfig::llamaRightFootPart2);
+  lcd.createChar(RunnerGameConfig::LLAMA_LEFT_FOOT_PART1_ID, RunnerGameConfig::llamaLeftFootPart1);
+  lcd.createChar(RunnerGameConfig::LLAMA_LEFT_FOOT_PART2_ID, RunnerGameConfig::llamaLeftFootPart2);
+  lcd.createChar(RunnerGameConfig::CACTUS_PART1_ID, RunnerGameConfig::cactusPart1);
+  lcd.createChar(RunnerGameConfig::CACTUS_PART2_ID, RunnerGameConfig::cactusPart2);
+
   // Initialize start button
   pinMode(BTN_PIN, INPUT_PULLUP);
   randomSeed(analogRead(POT_PIN));
@@ -191,7 +201,7 @@ void runChallenges()
     static RunnerGame runnerGame;
     challengeFinished = runnerGame.run();
      //static ArcheryChallenge archeryChallenge;
-    // challengeFinished = archeryChallenge.run();
+     //challengeFinished = archeryChallenge.run();
      // static MemoryGame memoryGame;
      // challengeFinished = memoryGame.run();
      // static EscapeVelocity escapeVelocity;
