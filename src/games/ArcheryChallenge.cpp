@@ -1,9 +1,6 @@
 #include "Globals.h"
 #include "ArcheryChallenge.h"
 
-// TODO: Correct button class usage instead of pin
-// TODO: Remove disappear target effect (useless) –≥ and add another effect instead
-// TODO: Split more into functions
 
 ArcheryChallenge::ArcheryChallenge()
     : state(ArcheryState::Init),
@@ -29,15 +26,10 @@ void ArcheryChallenge::init()
     // Play a short melody to signal the challenge start
     buzzer.playRoundStartMelody();
     // Initialize game variables
-    state = ArcheryState::Init;
-    currentRound = 1;
-    roundResult = false;
-    roundState = RoundAttemptState::Init;
-    arrowCount = 0;
-    prevButtonState = false;
+    resetGameState();
     // Reset displays
     whadda.clearDisplay();
-    rgbLed.off();
+    turnOffLeds();
     // Ensure timer is shown by default during gameplay (will be turned off during special messages)
     showTimer = true;
 }
@@ -56,12 +48,7 @@ bool ArcheryChallenge::run()
 
     case ArcheryState::Intro:
         // Display introductory message for the Archery Challenge
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        showTimer = false; // Hide timer during custom intro message
-        lcd.print("Archery Challenge");
-        lcd.setCursor(0, 1);
-        lcd.print("Ready your bow!");
+        displayLcdMessage("Archery Challenge", "Ready your bow!", true);
         stateStart = now;
         state = ArcheryState::WaitIntro;
         break;
@@ -98,19 +85,7 @@ bool ArcheryChallenge::run()
         if (roundResult)
         {
             // The player hit the target and won the round
-            // Provide a success indication (short beep and message) before moving to the next round
-            lcd.clear();
-            lcd.setCursor(0, 0);
-            showTimer = false;
-            lcd.print("Hit! Round ");
-            lcd.print(currentRound);
-            lcd.setCursor(0, 1);
-            lcd.print("Target ");
-            lcd.print(" clear!");
-            // Play a celebratory tone for the hit
-            buzzer.playTone(1000, 150);
-            buzzer.playTone(1200, 150);
-            rgbLed.setColor(0, 255, 0); // Green LED for success
+            displayHitFeedback(currentRound);
             stateStart = now;
             state = ArcheryState::RoundSuccess;
         }
@@ -119,7 +94,7 @@ bool ArcheryChallenge::run()
             // The player failed to hit the target in this round (out of arrows)
             Serial.println("Round " + String(currentRound) + " failed. Restarting challenge.");
             // Sound a failure tone
-            buzzer.playTone(200, 500);
+            playFailSound();
             stateStart = now;
             state = ArcheryState::RestartEffect;
         }
@@ -129,7 +104,7 @@ bool ArcheryChallenge::run()
         // Wait for a short duration after a successful hit
         if (millis() - stateStart >= ArcheryConfig::SUCCESS_DISPLAY_DURATION)
         {
-            rgbLed.off();
+            turnOffLeds();
             lcd.clear();
             currentRound++;
             showTimer = true;
@@ -152,12 +127,7 @@ bool ArcheryChallenge::run()
         runRestartEffect();
         if (millis() - stateStart >= ArcheryConfig::RESTART_EFFECT_DURATION)
         {
-            lcd.clear();
-            lcd.setCursor(0, 0);
-            showTimer = false;
-            lcd.print("Out of arrows...");
-            lcd.setCursor(0, 1);
-            lcd.print("Restarting");
+            displayRetryMessage();
             stateStart = now;
             state = ArcheryState::Retry;
         }
@@ -169,13 +139,10 @@ bool ArcheryChallenge::run()
         {
             // Reset game variables for a fresh start (but skip the intro this time)
             lcd.clear();
-            currentRound = 1;
-            roundState = RoundAttemptState::Init;
-            arrowCount = 0;
-            prevButtonState = false;
+            resetGameState();
             // Reset displays
             whadda.clearDisplay();
-            rgbLed.off();
+            turnOffLeds();
             showTimer = true;
             state = ArcheryState::GameLoop;
         }
@@ -183,12 +150,7 @@ bool ArcheryChallenge::run()
 
     case ArcheryState::Finished:
         // All rounds complete – challenge success
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Challenge Done!");
-        buzzer.playWinMelody();
-        rgbLed.off();
-        Serial.println("Game 3 completed!");
+        displayFinishedMessage();
         return true; // Signal to main that this challenge is finished
     }
 
@@ -204,42 +166,26 @@ bool ArcheryChallenge::run()
 bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
 {
     unsigned long now = millis();
-    bool currentState = digitalRead(BTN_PIN) == LOW ? true : false;
+    bool currentState = isButtonPressed();
 
     switch (roundState)
     {
     case RoundAttemptState::Init:
     {
         // ** Initialize a new round **
-        arrowCount = 0;
-        roundResult = false;
-        switch (roundLevel)
-        {
-        case 1:
-            tolerance = ArcheryConfig::TOLERANCE_ROUND1;
-            break;
-        case 2:
-            tolerance = ArcheryConfig::TOLERANCE_ROUND2;
-            break;
-        case 3:
-            tolerance = ArcheryConfig::TOLERANCE_ROUND3;
-            break;
-        }
-        // Set a random target value (simulating target distance/angle)
-        int rawTarget = random(0, 1023);
-        // Avoid extremes for safety (optional): ensure target is within [100, 923] range
-        if (rawTarget < 100)
-            rawTarget = 100;
-        if (rawTarget > 923)
-            rawTarget = 923;
-        targetValue = rawTarget;
+        resetRoundState();
+        
+        // Set tolerance based on round level
+        tolerance = getToleranceForRound(roundLevel);
+        
+        // Generate random target value
+        targetValue = generateRandomTarget();
 
         // Print target value for debugging
         Serial.println("Round " + String(roundLevel) + " target value: " + String(targetValue));
 
-        // Randomly select a magical effect for this round
-        int effectIndex = random(0, 3); // 0: Winds, 1: Disappear, 2: Shield
-        currentEffect = static_cast<ArcheryEffect>(effectIndex);
+        // Select random magical effect
+        currentEffect = selectRandomEffect();
 
         // Initialize effect-related variables
         shieldActive = false;
@@ -248,37 +194,22 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
         lastEffectToggle = now;
         feedbackStart = 0;
 
-        // Display round info on LCD
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Round ");
-        lcd.print(roundLevel);
-        lcd.setCursor(0, 1);
+        // Display round info
+        displayRoundInfo(roundLevel);
+        displayEffectInfo(currentEffect);
 
-        if (currentEffect == ArcheryEffect::Winds)
-        {
-            lcd.print("Shifting Winds!");
-        }
-        else if (currentEffect == ArcheryEffect::Disappear)
-        {
-            lcd.print("Target flickers!");
-        }
-        else if (currentEffect == ArcheryEffect::Shield)
-        {
-            lcd.print("Magic Shield!");
-        }
-
+        // Setup display based on effect
         whadda.clearDisplay();
         setWhaddaArrows(ArcheryConfig::ARROWS_PER_ROUND);
 
         // If the effect is "Disappearing Target", use an LED to represent the target visibility
-        // We will use the last LED (index 7) as a target indicator (on = visible, off = invisible)
         if (currentEffect == ArcheryEffect::Disappear)
         {
-            whadda.setLED(7, true);
+            whadda.setLED(ArcheryConfig::TARGET_INDICATOR_LED, true);
         }
-        // If the effect is "Shield", we'll indicate shield status with the RGB LED (blue when shield is up)
-        rgbLed.off();
+        
+        // If the effect is "Shield", we'll indicate shield status with the RGB LED
+        turnOffLeds();
 
         roundState = RoundAttemptState::Playing;
         prevButtonState = currentState;
@@ -292,62 +223,23 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
         // Apply magical effects dynamics
         if (currentEffect == ArcheryEffect::Shield)
         {
-            // Toggle shield on and off based on time intervals
-            if (shieldActive)
-            {
-                if (now - lastShieldToggle >= ArcheryConfig::SHIELD_UP_MS)
-                {
-                    shieldActive = false;
-                    lastShieldToggle = now;
-                    // Shield goes down: turn off blue indicator
-                    rgbLed.off();
-                }
-            }
-            else
-            {
-                if (now - lastShieldToggle >= ArcheryConfig::SHIELD_DOWN_MS)
-                {
-                    shieldActive = true;
-                    lastShieldToggle = now;
-                    // Shield comes up: indicate with blue LED
-                    rgbLed.setColor(0, 0, 255);
-                }
-            }
+            handleShieldEffect(now);
         }
 
         if (currentEffect == ArcheryEffect::Disappear)
         {
-            // Toggle target visibility (LED 7) at set intervals (mostly visible, brief off)
-            if (targetVisible)
-            {
-                if (now - lastEffectToggle >= ArcheryConfig::TARGET_VISIBLE_MS)
-                {
-                    targetVisible = false;
-                    lastEffectToggle = now;
-                    whadda.setLED(7, false);
-                }
-            }
-            else
-            {
-                if (now - lastEffectToggle >= ArcheryConfig::TARGET_INVISIBLE_MS)
-                {
-                    targetVisible = true;
-                    lastEffectToggle = now;
-                    whadda.setLED(7, true);
-                }
-            }
+            handleDisappearEffect(now);
         }
 
-        // (Shifting Winds effect does not require continuous action; it adjusts target after each shot)
         // Check for a button press to fire an arrow (rising edge detection)
         if (!prevButtonState && currentState)
         {
             // ** Fire the arrow **
-            arrowCount++;
-            buzzer.playTone(400, 50);
-            int raw = analogRead(POT_PIN);
-            int potValue = constrain(map(raw, 300, 1023, 0, 1023), 0, 1023);
-            bool hit = (abs(potValue - targetValue) <= tolerance);
+            fireArrow();
+            
+            // Read potentiometer and check for hit
+            int potValue = readPotentiometer();
+            bool hit = checkHit(potValue);
 
             Serial.println("Arrow fired! Pot value: " + String(potValue) + ", Hit: " + String(hit));
 
@@ -364,51 +256,20 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
             }
 
             // Update the arrows-left LED indicator
-            int arrowsLeft = ArcheryConfig::ARROWS_PER_ROUND - arrowCount;
-            setWhaddaArrows(arrowsLeft);
+            updateArrowsDisplay();
 
             if (hit)
             {
                 // *** Target HIT ***
                 roundResult = true;
-                rgbLed.setColor(0, 255, 0);
+                setSuccessLed();
                 roundState = RoundAttemptState::Init;
                 return true;
             }
             else
             {
                 // *** Missed the target ***
-                lcd.clear();
-                lcd.setCursor(0, 0);
-                if (shieldBlocked)
-                {
-                    lcd.print("Blocked by Shield!");
-                    buzzer.playTone(1000, 100);
-                }
-                else if (targetVisible)
-                {
-                    // Indicate if the shot was too high or too low
-                    if (potValue > targetValue)
-                    {
-                        lcd.print("Too high!");
-                    }
-                    else
-                    {
-                        lcd.print("Too low!");
-                    }
-                    buzzer.playTone(300, 150);
-                }
-                else
-                {
-                    lcd.print("Target invisible!");
-                    buzzer.playTone(300, 150);
-                }
-
-                // Set LED feedback for miss (red for normal miss, blue already indicated for shield)
-                if (!shieldBlocked)
-                {
-                    rgbLed.setColor(255, 0, 0); // Red LED for a miss
-                }
+                displayMissFeedback(shieldBlocked, targetVisible, potValue);
 
                 if (arrowCount >= ArcheryConfig::ARROWS_PER_ROUND)
                 {
@@ -442,7 +303,7 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
             lcd.print(roundLevel);
             lcd.setCursor(0, 1);
             lcd.print("Aim and Fire!");
-            rgbLed.off();
+            turnOffLeds();
             showTimer = true;
             roundState = RoundAttemptState::Playing;
         }
@@ -465,7 +326,7 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
  */
 void ArcheryChallenge::setWhaddaArrows(int arrowsLeft)
 {
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < ArcheryConfig::MAX_LEDS; ++i)
     {
         whadda.setLED(i, false);
     }
@@ -492,3 +353,289 @@ void ArcheryChallenge::runRestartEffect()
     lcd.print("Try again!");
     whadda.displayText("RESTART");
 }
+
+// ===== Helper Methods =====
+
+void ArcheryChallenge::displayLcdMessage(const char* line1, const char* line2, bool hideTimer)
+{
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    showTimer = !hideTimer;
+    lcd.print(line1);
+    
+    if (line2 != nullptr)
+    {
+        lcd.setCursor(0, 1);
+        lcd.print(line2);
+    }
+}
+
+void ArcheryChallenge::displayRoundInfo(int roundLevel)
+{
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Round ");
+    lcd.print(roundLevel);
+}
+
+void ArcheryChallenge::displayEffectInfo(ArcheryEffect effect)
+{
+    lcd.setCursor(0, 1);
+    
+    if (effect == ArcheryEffect::Winds)
+    {
+        lcd.print("Shifting Winds!");
+    }
+    else if (effect == ArcheryEffect::Disappear)
+    {
+        lcd.print("Target flickers!");
+    }
+    else if (effect == ArcheryEffect::Shield)
+    {
+        lcd.print("Magic Shield!");
+    }
+}
+
+void ArcheryChallenge::displayHitFeedback(int roundLevel)
+{
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    showTimer = false;
+    lcd.print("Hit! Round ");
+    lcd.print(roundLevel);
+    lcd.setCursor(0, 1);
+    lcd.print("Target ");
+    lcd.print(" clear!");
+    
+    // Play a celebratory tone for the hit
+    playHitSound();
+    setSuccessLed();
+}
+
+void ArcheryChallenge::displayMissFeedback(bool shieldBlocked, bool targetVisible, int potValue)
+{
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    
+    if (shieldBlocked)
+    {
+        lcd.print("Blocked by Shield!");
+        playShieldBlockSound();
+    }
+    else if (targetVisible)
+    {
+        // Indicate if the shot was too high or too low
+        if (potValue > targetValue)
+        {
+            lcd.print("Too high!");
+        }
+        else
+        {
+            lcd.print("Too low!");
+        }
+        playMissSound();
+    }
+    else
+    {
+        lcd.print("Target invisible!");
+        playMissSound();
+    }
+
+    // Set LED feedback for miss (red for normal miss, blue already indicated for shield)
+    if (!shieldBlocked)
+    {
+        setMissLed();
+    }
+}
+
+void ArcheryChallenge::displayRetryMessage()
+{
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    showTimer = false;
+    lcd.print("Out of arrows...");
+    lcd.setCursor(0, 1);
+    lcd.print("Restarting");
+}
+
+void ArcheryChallenge::displayFinishedMessage()
+{
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Challenge Done!");
+    buzzer.playWinMelody();
+    turnOffLeds();
+    Serial.println("Game 3 completed!");
+}
+
+void ArcheryChallenge::resetGameState()
+{
+    state = ArcheryState::Init;
+    currentRound = 1;
+    roundResult = false;
+    roundState = RoundAttemptState::Init;
+    arrowCount = 0;
+    prevButtonState = false;
+}
+
+void ArcheryChallenge::resetRoundState()
+{
+    arrowCount = 0;
+    roundResult = false;
+}
+
+int ArcheryChallenge::getToleranceForRound(int roundLevel)
+{
+    switch (roundLevel)
+    {
+    case 1:
+        return ArcheryConfig::TOLERANCE_ROUND1;
+    case 2:
+        return ArcheryConfig::TOLERANCE_ROUND2;
+    case 3:
+        return ArcheryConfig::TOLERANCE_ROUND3;
+    default:
+        return ArcheryConfig::TOLERANCE_ROUND1;
+    }
+}
+
+int ArcheryChallenge::generateRandomTarget()
+{
+    // Set a random target value (simulating target distance/angle)
+    int rawTarget = random(0, 1023);
+    
+    // Avoid extremes for safety: ensure target is within safe range
+    if (rawTarget < ArcheryConfig::TARGET_MIN_SAFE)
+        rawTarget = ArcheryConfig::TARGET_MIN_SAFE;
+    if (rawTarget > ArcheryConfig::TARGET_MAX_SAFE)
+        rawTarget = ArcheryConfig::TARGET_MAX_SAFE;
+        
+    return rawTarget;
+}
+
+ArcheryEffect ArcheryChallenge::selectRandomEffect()
+{
+    // Randomly select a magical effect for this round
+    int effectIndex = random(0, 3); // 0: Winds, 1: Disappear, 2: Shield
+    return static_cast<ArcheryEffect>(effectIndex);
+}
+
+bool ArcheryChallenge::isButtonPressed()
+{
+    return digitalRead(BTN_PIN) == LOW;
+}
+
+int ArcheryChallenge::readPotentiometer()
+{
+    int raw = analogRead(POT_PIN);
+    return constrain(map(raw, 
+                         ArcheryConfig::POT_MIN_RAW, 
+                         ArcheryConfig::POT_MAX_RAW, 
+                         ArcheryConfig::POT_MIN_MAPPED, 
+                         ArcheryConfig::POT_MAX_MAPPED), 
+                    ArcheryConfig::POT_MIN_MAPPED, 
+                    ArcheryConfig::POT_MAX_MAPPED);
+}
+
+bool ArcheryChallenge::checkHit(int potValue)
+{
+    return (abs(potValue - targetValue) <= tolerance);
+}
+
+void ArcheryChallenge::handleShieldEffect(unsigned long now)
+{
+    // Toggle shield on and off based on time intervals
+    if (shieldActive)
+    {
+        if (now - lastShieldToggle >= ArcheryConfig::SHIELD_UP_MS)
+        {
+            shieldActive = false;
+            lastShieldToggle = now;
+            // Shield goes down: turn off blue indicator
+            turnOffLeds();
+        }
+    }
+    else
+    {
+        if (now - lastShieldToggle >= ArcheryConfig::SHIELD_DOWN_MS)
+        {
+            shieldActive = true;
+            lastShieldToggle = now;
+            // Shield comes up: indicate with blue LED
+            setShieldLed();
+        }
+    }
+}
+
+void ArcheryChallenge::handleDisappearEffect(unsigned long now)
+{
+    // Toggle target visibility (LED 7) at set intervals (mostly visible, brief off)
+    if (targetVisible)
+    {
+        if (now - lastEffectToggle >= ArcheryConfig::TARGET_VISIBLE_MS)
+        {
+            targetVisible = false;
+            lastEffectToggle = now;
+            whadda.setLED(ArcheryConfig::TARGET_INDICATOR_LED, false);
+        }
+    }
+    else
+    {
+        if (now - lastEffectToggle >= ArcheryConfig::TARGET_INVISIBLE_MS)
+        {
+            targetVisible = true;
+            lastEffectToggle = now;
+            whadda.setLED(ArcheryConfig::TARGET_INDICATOR_LED, true);
+        }
+    }
+}
+
+void ArcheryChallenge::fireArrow()
+{
+    arrowCount++;
+    buzzer.playTone(ArcheryConfig::ARROW_FIRE_FREQ, ArcheryConfig::ARROW_FIRE_DURATION);
+}
+
+void ArcheryChallenge::updateArrowsDisplay()
+{
+    int arrowsLeft = ArcheryConfig::ARROWS_PER_ROUND - arrowCount;
+    setWhaddaArrows(arrowsLeft);
+}
+
+void ArcheryChallenge::playHitSound()
+{
+    buzzer.playTone(ArcheryConfig::HIT_FREQ_1, ArcheryConfig::HIT_DURATION);
+    buzzer.playTone(ArcheryConfig::HIT_FREQ_2, ArcheryConfig::HIT_DURATION);
+}
+
+void ArcheryChallenge::playMissSound()
+{
+    buzzer.playTone(ArcheryConfig::MISS_FREQ, ArcheryConfig::MISS_DURATION);
+}
+
+void ArcheryChallenge::playShieldBlockSound()
+{
+    buzzer.playTone(ArcheryConfig::SHIELD_BLOCK_FREQ, ArcheryConfig::SHIELD_BLOCK_DURATION);
+}
+
+void ArcheryChallenge::playFailSound()
+{
+    buzzer.playTone(ArcheryConfig::FAIL_FREQ, ArcheryConfig::FAIL_DURATION);
+}
+
+void ArcheryChallenge::setSuccessLed()
+{
+    rgbLed.setColor(0, 255, 0); // Green LED for success
+}
+
+void ArcheryChallenge::setMissLed()
+{
+    rgbLed.setColor(255, 0, 0); // Red LED for failure
+}
+
+void ArcheryChallenge::setShieldLed()
+{
+    rgbLed.setColor(0, 0, 255); // Blue LED for shield
+}
+
+
