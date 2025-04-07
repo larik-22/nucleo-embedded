@@ -1,7 +1,25 @@
+/**
+ * @file ArcheryChallenge.cpp
+ * @brief Implementation of the Archery Challenge game
+ * 
+ * This file contains the implementation of the Archery Challenge game.
+ * The player must hit targets with arrows while dealing with magical effects
+ * that make the challenge more difficult. The game consists of three rounds,
+ * each with increasing difficulty.
+ * 
+ * @author Your Name
+ * @date 2023
+ */
+
 #include "Globals.h"
 #include "ArcheryChallenge.h"
 
-
+/**
+ * @brief Constructor for ArcheryChallenge
+ * 
+ * Initializes all member variables to their default values.
+ * The game starts in the Init state with the first round.
+ */
 ArcheryChallenge::ArcheryChallenge()
     : state(ArcheryState::Init),
       currentRound(1),
@@ -21,6 +39,12 @@ ArcheryChallenge::ArcheryChallenge()
 {
 }
 
+/**
+ * @brief Initializes the game
+ * 
+ * Sets up the game state, plays the start melody, and prepares for the game to start.
+ * This method is called once at the beginning of the game.
+ */
 void ArcheryChallenge::init()
 {
     // Play a short melody to signal the challenge start
@@ -34,6 +58,14 @@ void ArcheryChallenge::init()
     showTimer = true;
 }
 
+/**
+ * @brief Main game loop method
+ * 
+ * This method is called repeatedly by the game engine.
+ * It handles the game state machine, user input, and visual feedback.
+ * 
+ * @return true when the game is complete, false otherwise
+ */
 bool ArcheryChallenge::run()
 {
     unsigned long now = millis();
@@ -356,6 +388,13 @@ void ArcheryChallenge::runRestartEffect()
 
 // ===== Helper Methods =====
 
+/**
+ * @brief Displays a message on the LCD screen.
+ *
+ * @param line1 First line of text to display
+ * @param line2 Second line of text to display (optional)
+ * @param hideTimer Whether to hide the timer during this message
+ */
 void ArcheryChallenge::displayLcdMessage(const char* line1, const char* line2, bool hideTimer)
 {
     lcd.clear();
@@ -370,6 +409,11 @@ void ArcheryChallenge::displayLcdMessage(const char* line1, const char* line2, b
     }
 }
 
+/**
+ * @brief Displays round information on the LCD.
+ *
+ * @param roundLevel Current round number
+ */
 void ArcheryChallenge::displayRoundInfo(int roundLevel)
 {
     lcd.clear();
@@ -378,6 +422,11 @@ void ArcheryChallenge::displayRoundInfo(int roundLevel)
     lcd.print(roundLevel);
 }
 
+/**
+ * @brief Displays information about the current magical effect.
+ *
+ * @param effect The current magical effect
+ */
 void ArcheryChallenge::displayEffectInfo(ArcheryEffect effect)
 {
     lcd.setCursor(0, 1);
@@ -396,6 +445,11 @@ void ArcheryChallenge::displayEffectInfo(ArcheryEffect effect)
     }
 }
 
+/**
+ * @brief Displays feedback for a successful hit.
+ *
+ * @param roundLevel Current round number
+ */
 void ArcheryChallenge::displayHitFeedback(int roundLevel)
 {
     lcd.clear();
@@ -412,6 +466,13 @@ void ArcheryChallenge::displayHitFeedback(int roundLevel)
     setSuccessLed();
 }
 
+/**
+ * @brief Displays feedback for a missed shot.
+ *
+ * @param shieldBlocked Whether the shot was blocked by a shield
+ * @param targetVisible Whether the target was visible when shot
+ * @param potValue The potentiometer value when the shot was fired
+ */
 void ArcheryChallenge::displayMissFeedback(bool shieldBlocked, bool targetVisible, int potValue)
 {
     lcd.clear();
@@ -448,6 +509,9 @@ void ArcheryChallenge::displayMissFeedback(bool shieldBlocked, bool targetVisibl
     }
 }
 
+/**
+ * @brief Displays the retry message when out of arrows.
+ */
 void ArcheryChallenge::displayRetryMessage()
 {
     lcd.clear();
@@ -458,6 +522,9 @@ void ArcheryChallenge::displayRetryMessage()
     lcd.print("Restarting");
 }
 
+/**
+ * @brief Displays the completion message when all rounds are finished.
+ */
 void ArcheryChallenge::displayFinishedMessage()
 {
     lcd.clear();
@@ -468,6 +535,9 @@ void ArcheryChallenge::displayFinishedMessage()
     Serial.println("Game 3 completed!");
 }
 
+/**
+ * @brief Resets the game state to initial values.
+ */
 void ArcheryChallenge::resetGameState()
 {
     state = ArcheryState::Init;
@@ -478,12 +548,21 @@ void ArcheryChallenge::resetGameState()
     prevButtonState = false;
 }
 
+/**
+ * @brief Resets the round state to initial values.
+ */
 void ArcheryChallenge::resetRoundState()
 {
     arrowCount = 0;
     roundResult = false;
 }
 
+/**
+ * @brief Gets the tolerance value for a specific round.
+ *
+ * @param roundLevel The round number (1-indexed)
+ * @return The tolerance value for the specified round
+ */
 int ArcheryChallenge::getToleranceForRound(int roundLevel)
 {
     switch (roundLevel)
@@ -499,6 +578,11 @@ int ArcheryChallenge::getToleranceForRound(int roundLevel)
     }
 }
 
+/**
+ * @brief Generates a random target value within safe limits.
+ *
+ * @return A random target value between TARGET_MIN_SAFE and TARGET_MAX_SAFE
+ */
 int ArcheryChallenge::generateRandomTarget()
 {
     // Set a random target value (simulating target distance/angle)
@@ -513,6 +597,11 @@ int ArcheryChallenge::generateRandomTarget()
     return rawTarget;
 }
 
+/**
+ * @brief Selects a random magical effect for the round.
+ *
+ * @return A randomly selected ArcheryEffect
+ */
 ArcheryEffect ArcheryChallenge::selectRandomEffect()
 {
     // Randomly select a magical effect for this round
@@ -520,11 +609,21 @@ ArcheryEffect ArcheryChallenge::selectRandomEffect()
     return static_cast<ArcheryEffect>(effectIndex);
 }
 
+/**
+ * @brief Checks if the button is currently pressed.
+ *
+ * @return true if the button is pressed, false otherwise
+ */
 bool ArcheryChallenge::isButtonPressed()
 {
     return digitalRead(BTN_PIN) == LOW;
 }
 
+/**
+ * @brief Reads and maps the potentiometer value.
+ *
+ * @return The mapped potentiometer value
+ */
 int ArcheryChallenge::readPotentiometer()
 {
     int raw = analogRead(POT_PIN);
@@ -537,11 +636,24 @@ int ArcheryChallenge::readPotentiometer()
                     ArcheryConfig::POT_MAX_MAPPED);
 }
 
+/**
+ * @brief Checks if a shot hit the target.
+ *
+ * @param potValue The potentiometer value when the shot was fired
+ * @return true if the shot hit the target, false otherwise
+ */
 bool ArcheryChallenge::checkHit(int potValue)
 {
     return (abs(potValue - targetValue) <= tolerance);
 }
 
+/**
+ * @brief Handles the shield effect logic.
+ *
+ * Toggles the shield on and off based on time intervals.
+ *
+ * @param now Current time in milliseconds
+ */
 void ArcheryChallenge::handleShieldEffect(unsigned long now)
 {
     // Toggle shield on and off based on time intervals
@@ -567,6 +679,13 @@ void ArcheryChallenge::handleShieldEffect(unsigned long now)
     }
 }
 
+/**
+ * @brief Handles the disappearing target effect logic.
+ *
+ * Toggles target visibility at set intervals.
+ *
+ * @param now Current time in milliseconds
+ */
 void ArcheryChallenge::handleDisappearEffect(unsigned long now)
 {
     // Toggle target visibility (LED 7) at set intervals (mostly visible, brief off)
@@ -590,49 +709,78 @@ void ArcheryChallenge::handleDisappearEffect(unsigned long now)
     }
 }
 
+/**
+ * @brief Processes an arrow being fired.
+ *
+ * Increments the arrow count and plays the firing sound.
+ */
 void ArcheryChallenge::fireArrow()
 {
     arrowCount++;
     buzzer.playTone(ArcheryConfig::ARROW_FIRE_FREQ, ArcheryConfig::ARROW_FIRE_DURATION);
 }
 
+/**
+ * @brief Updates the arrows display on the Whadda.
+ */
 void ArcheryChallenge::updateArrowsDisplay()
 {
     int arrowsLeft = ArcheryConfig::ARROWS_PER_ROUND - arrowCount;
     setWhaddaArrows(arrowsLeft);
 }
 
+/**
+ * @brief Plays the sound for a successful hit.
+ */
 void ArcheryChallenge::playHitSound()
 {
     buzzer.playTone(ArcheryConfig::HIT_FREQ_1, ArcheryConfig::HIT_DURATION);
     buzzer.playTone(ArcheryConfig::HIT_FREQ_2, ArcheryConfig::HIT_DURATION);
 }
 
+/**
+ * @brief Plays the sound for a missed shot.
+ */
 void ArcheryChallenge::playMissSound()
 {
     buzzer.playTone(ArcheryConfig::MISS_FREQ, ArcheryConfig::MISS_DURATION);
 }
 
+/**
+ * @brief Plays the sound for a shot blocked by a shield.
+ */
 void ArcheryChallenge::playShieldBlockSound()
 {
     buzzer.playTone(ArcheryConfig::SHIELD_BLOCK_FREQ, ArcheryConfig::SHIELD_BLOCK_DURATION);
 }
 
+/**
+ * @brief Plays the sound for a failed round.
+ */
 void ArcheryChallenge::playFailSound()
 {
     buzzer.playTone(ArcheryConfig::FAIL_FREQ, ArcheryConfig::FAIL_DURATION);
 }
 
+/**
+ * @brief Sets the RGB LED to indicate success (green).
+ */
 void ArcheryChallenge::setSuccessLed()
 {
     rgbLed.setColor(0, 255, 0); // Green LED for success
 }
 
+/**
+ * @brief Sets the RGB LED to indicate failure (red).
+ */
 void ArcheryChallenge::setMissLed()
 {
     rgbLed.setColor(255, 0, 0); // Red LED for failure
 }
 
+/**
+ * @brief Sets the RGB LED to indicate shield active (blue).
+ */
 void ArcheryChallenge::setShieldLed()
 {
     rgbLed.setColor(0, 0, 255); // Blue LED for shield
