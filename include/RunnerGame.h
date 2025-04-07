@@ -43,8 +43,9 @@ namespace RunnerGameConfig
 
     // Timing constants (ms)
     constexpr unsigned long JUMP_DURATION = 600;
-    constexpr unsigned long WIN_TIME = 4000;      // 1 minute
-    constexpr unsigned long RESTART_DELAY = 2000; // 2 seconds delay before auto-restart
+    constexpr unsigned long WIN_TIME = 4000;           // 4 seconds to win
+    constexpr unsigned long WIN_STATE_DURATION = 2000; // 2 seconds for winning state
+    constexpr unsigned long RESTART_DELAY = 2000;      // 2 seconds delay before auto-restart
 
     // Game messages
     constexpr const char *WELCOME_MSG_LINE1 = "Runner Game";
@@ -91,7 +92,8 @@ enum class RunnerGameState
 {
     Idle,
     Playing,
-    GameOver
+    GameOver,
+    Winning
 };
 
 /**
@@ -114,6 +116,7 @@ enum class ObstacleType
  * - Idle: Waiting for the player to start the game.
  * - Playing: The game is running.
  * - Game Over: The game has ended; waiting for restart.
+ * - Winning: The game has ended and is in the winning state.
  *
  * Winning condition: Survive for 1 minute.
  */
@@ -149,6 +152,7 @@ private:
     unsigned long gameOverTime;          // Time when game over occurred
     int animationState;                  // Current animation state (0=standing, 1=right foot, 2=left foot)
     unsigned long lastAnimationTime;     // Time of last animation update
+    unsigned long winStateStartTime;     // Time when winning state started
 
     /**
      * @brief Resets game variables and starts a new game.
@@ -186,6 +190,13 @@ private:
      * @return true if the game should continue, false otherwise.
      */
     bool handleGameOverState(bool jumpPressed);
+
+    /**
+     * @brief Handles the winning state logic.
+     * @param currentTime Current time in milliseconds.
+     * @return true if the game should continue, false otherwise.
+     */
+    bool handleWinningState(unsigned long currentTime);
 
     /**
      * @brief Updates the jump state based on button input.

@@ -45,7 +45,8 @@ RunnerGame::RunnerGame()
       lastSpeedIncreaseTime(0),
       gameOverTime(0),
       animationState(0),
-      lastAnimationTime(0)
+      lastAnimationTime(0),
+      winStateStartTime(0)
 {
 }
 
@@ -110,7 +111,7 @@ void RunnerGame::showGameOver()
 
 void RunnerGame::showWinScreen()
 {
-    showWinFeedback();
+    // Display the winning message
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print(RunnerGameConfig::WIN_MSG_LINE1);
@@ -118,8 +119,15 @@ void RunnerGame::showWinScreen()
     lcd.print(RunnerGameConfig::WIN_MSG_LINE2);
     updateScoreDisplay(); // Final score display
 
-    // Play winning melody and show win feedback
+    // Start blinking the LED with the win color
+    rgbLed.startBlinkColor(RunnerGameConfig::WIN_LED_RED, RunnerGameConfig::WIN_LED_GREEN, RunnerGameConfig::WIN_LED_BLUE, RunnerGameConfig::WIN_BLINK_COUNT);
+
+    // Play winning melody
     buzzer.playWinMelody();
+
+    // Set state to winning and record the start time
+    currentState = RunnerGameState::Winning;
+    winStateStartTime = millis();
 }
 
 bool RunnerGame::handleIdleState(bool jumpPressed)
@@ -134,11 +142,11 @@ bool RunnerGame::handleIdleState(bool jumpPressed)
 
 bool RunnerGame::handlePlayingState(unsigned long currentTime, bool jumpPressed)
 {
-    // Winning condition: survive for 1 minute
+    // Winning condition: survive for the specified time
     if (currentTime - gameStartTime >= RunnerGameConfig::WIN_TIME)
     {
         showWinScreen();
-        return true; // Game is complete - return true to indicate completion
+        return false; // Game is not complete yet, we're in the winning state
     }
 
     // Update jump state
@@ -177,6 +185,28 @@ bool RunnerGame::handleGameOverState(bool jumpPressed)
     }
 
     return false; // Game is not complete yet, player can restart
+}
+
+bool RunnerGame::handleWinningState(unsigned long currentTime)
+{
+    // Update RGB LED if it's blinking
+    rgbLed.update();
+
+    // Check if the winning state duration has elapsed
+    if (currentTime - winStateStartTime >= RunnerGameConfig::WIN_STATE_DURATION)
+    {
+        // Turn off the LED
+        rgbLed.off();
+
+        // Return to idle state
+        currentState = RunnerGameState::Idle;
+
+        // Return true to indicate the game is complete
+        return true;
+    }
+
+    // Still in winning state, continue blinking
+    return false;
 }
 
 void RunnerGame::updateJumpState(unsigned long currentTime, bool jumpPressed)
@@ -328,12 +358,6 @@ void RunnerGame::showScoreFeedback()
     rgbLed.off();
 }
 
-void RunnerGame::showWinFeedback()
-{
-    // Start blinking the LED with the win color
-    rgbLed.startBlinkColor(RunnerGameConfig::WIN_LED_RED, RunnerGameConfig::WIN_LED_GREEN, RunnerGameConfig::WIN_LED_BLUE, RunnerGameConfig::WIN_BLINK_COUNT);
-}
-
 void RunnerGame::updateGameSpeed(unsigned long currentTime)
 {
     // Check if it's time to increase the game speed
@@ -366,9 +390,6 @@ bool RunnerGame::run()
         jumpButtonReleased = true;
     }
 
-    // Update RGB LED if it's blinking
-    rgbLed.update();
-
     switch (currentState)
     {
     case RunnerGameState::Idle:
@@ -379,6 +400,9 @@ bool RunnerGame::run()
 
     case RunnerGameState::GameOver:
         return handleGameOverState(jumpPressed);
+
+    case RunnerGameState::Winning:
+        return handleWinningState(currentTime);
 
     default:
         return false; // Game is not complete yet
