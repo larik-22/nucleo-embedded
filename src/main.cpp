@@ -8,6 +8,7 @@
 #include "Game1.h"
 #include "Game2.h"
 #include "Game3.h"
+#include "Game4.h"
 #include "RunnerGame.h"
 
 // TODO: Globals.h with extern declaraions of Components
