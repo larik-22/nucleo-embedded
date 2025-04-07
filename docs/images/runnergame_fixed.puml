@@ -1,0 +1,82 @@
+@startuml RunnerGame Sequence Diagram
+
+actor Player
+participant "Game Engine" as GE
+participant "Game State" as GS
+participant "Game Objects" as GO
+participant "Display" as D
+participant "Input Handler" as IH
+
+Player -> IH: Press start button
+activate IH
+IH -> GE: Start game
+activate GE
+
+GE -> GS: Set state to Playing
+activate GS
+GS --> GE: State updated
+deactivate GS
+
+GE -> GO: Initialize game objects
+activate GO
+GO --> GE: Objects initialized
+deactivate GO
+
+GE -> D: Clear screen
+activate D
+D --> GE: Screen cleared
+deactivate D
+
+loop Game Loop
+    GE -> IH: Check for jump input
+    activate IH
+    IH --> GE: Jump state
+    deactivate IH
+    
+    GE -> GO: Update game objects
+    activate GO
+    GO -> GO: Update cactus position
+    GO -> GO: Check for collision
+    alt Collision detected
+        GO --> GE: Collision
+        deactivate GO
+        GE -> GS: Set state to GameOver
+        activate GS
+        GS --> GE: State updated
+        deactivate GS
+        GE -> D: Show game over screen
+        activate D
+        D --> GE: Screen updated
+        deactivate D
+        
+        GE -> GE: Wait for restart delay
+        
+        GE -> GS: Set state to Playing
+        activate GS
+        GS --> GE: State updated
+        deactivate GS
+    else No collision
+        GO --> GE: No collision
+        deactivate GO
+        GE -> D: Draw game graphics
+        activate D
+        D --> GE: Graphics drawn
+        deactivate D
+    end
+    
+    alt Win time reached
+        GE -> GS: Set state to Winning
+        activate GS
+        GS --> GE: State updated
+        deactivate GS
+        GE -> D: Show win screen
+        activate D
+        D --> GE: Screen updated
+        deactivate D
+        GE -> GE: Advance to next game
+    end
+end
+
+deactivate GE
+
+@enduml 
