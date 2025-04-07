@@ -214,6 +214,7 @@ void runChallenges()
     {
       currentChallenge++;
       lcd.clear();
+      showTimer = false;
       lcd.print("Game 3 start");
     }
   }
