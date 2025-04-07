@@ -17,59 +17,125 @@ extern bool showTimer;
 // Custom Icons for Llama and Cactus
 // -------------------------------------------------------------------
 
-// Llama Icon:
-// Designed with a small head, body, and legs
-static byte llamaChar[8] = {
-    B00110, // Row 0: head
-    B00111, // Row 1: head outline
-    B00111, // Row 2: neck
-    B00110, // Row 3: neck outline
-    B01110, // Row 4: body
-    B01110, // Row 5: body
-    B01110, // Row 6: body
-    B01010  // Row 7: legs
+// Llama standing (two parts)
+static byte llamaStandingPart1[8] = {
+    B00000,
+    B00000,
+    B00110, // Llama head
+    B00110,
+    B00111, // Llama neck
+    B00111,
+    B00011, // Llama body
+    B00011};
+static byte llamaStandingPart2[8] = {
+    B00111,
+    B00111,
+    B00111,
+    B00100,
+    B11100,
+    B11100,
+    B11000,
+    B11000};
+
+// Llama with right foot forward
+static byte llamaRightFootPart1[8] = {
+    B00000,
+    B00000,
+    B00110, // Llama head
+    B00110,
+    B00111, // Llama neck
+    B00111,
+    B00011, // Llama body
+    B00011};
+static byte llamaRightFootPart2[8] = {
+    B00111,
+    B00111,
+    B00111,
+    B00100,
+    B11100,
+    B11100,
+    B11000,
+    B00000 // Right foot forward
 };
 
-// Cactus Icon:
-// A symmetrical cactus with branches
-static byte cactusChar[8] = {
-    B01110, // Row 0: top of cactus
-    B01110, // Row 1: upper body
-    B11111, // Row 2: main body
-    B01110, // Row 3: middle body
-    B11111, // Row 4: main body
-    B01110, // Row 5: lower body
-    B11111, // Row 6: base
-    B01110  // Row 7: bottom
+// Llama with left foot forward
+static byte llamaLeftFootPart1[8] = {
+    B00000,
+    B00000,
+    B00110, // Llama head
+    B00110,
+    B00111, // Llama neck
+    B00111,
+    B00011, // Llama body
+    B00000  // Left foot forward
 };
+static byte llamaLeftFootPart2[8] = {
+    B00111,
+    B00111,
+    B00111,
+    B00100,
+    B11100,
+    B11100,
+    B11000,
+    B11000};
+
+// Cactus (two parts)
+static byte cactusPart1[8] = {
+    B00000,
+    B00100,
+    B00100,
+    B10100,
+    B10100,
+    B11100,
+    B00100,
+    B00100};
+static byte cactusPart2[8] = {
+    B00100,
+    B00101,
+    B00101,
+    B10101,
+    B11111,
+    B00100,
+    B00100,
+    B00100};
+// byte TWO_BRANCHES_PART_1[8] = {B00000, B00100, B00100, B10100, B10100, B11100, B00100, B00100};
+// byte TWO_BRANCHES_PART_2[8] = {B00100, B00101, B00101, B10101, B11111, B00100, B00100, B00100};
 
 RunnerGame::RunnerGame()
     : currentState(RunnerGameState::Idle),
       lastUpdateTime(0),
       gameStartTime(0),
       cactusPos(RunnerGameConfig::INITIAL_CACTUS_POS),
-      tRexRow(RunnerGameConfig::GROUND_ROW),
+      llamaRow(RunnerGameConfig::GROUND_ROW), // Renamed from tRexRow
       isJumping(false),
       jumpStartTime(0),
-      jumpButtonReleased(true), // Ready to accept a jump on first press
+      jumpButtonReleased(true),
       score(0),
       currentCactusType(0),
       gameInterval(RunnerGameConfig::INITIAL_GAME_INTERVAL),
       lastSpeedIncreaseTime(0),
-      gameOverTime(0)
+      gameOverTime(0),
+      animationState(0),
+      lastAnimationTime(0)
 {
 }
 
 void RunnerGame::init()
 {
+    // Initialize the LCD
     lcd.init();
     lcd.backlight();
     lcd.clear();
 
-    // Load custom characters into the LCD's memory
-    lcd.createChar(RunnerGameConfig::T_REX_CHAR_ID, llamaChar);
-    lcd.createChar(RunnerGameConfig::CACTUS1_CHAR_ID, cactusChar);
-    lcd.createChar(RunnerGameConfig::CACTUS2_CHAR_ID, cactusChar); // Using same cactus for both
+    // Create custom characters - EXACTLY as in the working example
+    lcd.createChar(0, llamaStandingPart1);
+    lcd.createChar(1, llamaStandingPart2);
+    lcd.createChar(2, llamaRightFootPart1);
+    lcd.createChar(3, llamaRightFootPart2);
+    lcd.createChar(4, llamaLeftFootPart1);
+    lcd.createChar(5, llamaLeftFootPart2);
+    lcd.createChar(6, cactusPart1);
+    lcd.createChar(7, cactusPart2);
 
     // Display the welcome/idle screen on the LCD
     lcd.setCursor(0, 0);
@@ -87,16 +153,17 @@ void RunnerGame::startGame()
 {
     lcd.clear();
     cactusPos = RunnerGameConfig::INITIAL_CACTUS_POS;
-    tRexRow = RunnerGameConfig::GROUND_ROW; // Llama starts on the bottom row
+    llamaRow = RunnerGameConfig::GROUND_ROW; // Renamed from tRexRow
     isJumping = false;
     score = 0;
-    jumpButtonReleased = false; // Require button release before new jump
+    jumpButtonReleased = false;
     currentState = RunnerGameState::Playing;
     lastUpdateTime = millis();
-    gameStartTime = millis();                               // Start the win timer
-    lastSpeedIncreaseTime = millis();                       // Initialize speed increase timer
-    gameInterval = RunnerGameConfig::INITIAL_GAME_INTERVAL; // Reset game speed
-    // Initialize score on Whadda display
+    gameStartTime = millis();
+    lastSpeedIncreaseTime = millis();
+    gameInterval = RunnerGameConfig::INITIAL_GAME_INTERVAL;
+    animationState = 0;
+    lastAnimationTime = millis();
     updateScoreDisplay();
 }
 
@@ -120,8 +187,11 @@ void RunnerGame::showWinScreen()
     lcd.print(RunnerGameConfig::WIN_MSG_LINE2);
     updateScoreDisplay(); // Final score display
 
-    // Play winning melody
+    // Play winning melody with a more elaborate effect
     buzzer.playWinMelody();
+
+    // Add visual feedback for winning
+    rgbLed.startBlinkColor(0, 255, 0, 3);
 }
 
 bool RunnerGame::handleIdleState(bool jumpPressed)
@@ -136,7 +206,7 @@ bool RunnerGame::handleIdleState(bool jumpPressed)
 
 bool RunnerGame::handlePlayingState(unsigned long currentTime, bool jumpPressed)
 {
-    // Winning condition: survive for 1 minute
+    // Winning condition: survive for 30 seconds
     if (currentTime - gameStartTime >= RunnerGameConfig::WIN_TIME)
     {
         showWinScreen();
@@ -148,6 +218,9 @@ bool RunnerGame::handlePlayingState(unsigned long currentTime, bool jumpPressed)
 
     // Update game speed
     updateGameSpeed(currentTime);
+
+    // Update animation state
+    updateAnimationState(currentTime);
 
     // Update game objects at fixed intervals
     if (currentTime - lastUpdateTime >= gameInterval)
@@ -183,74 +256,102 @@ bool RunnerGame::handleGameOverState(bool jumpPressed)
 
 void RunnerGame::updateJumpState(unsigned long currentTime, bool jumpPressed)
 {
-    // Initiate jump only if not already jumping and the button has been released
     if (!isJumping && jumpPressed && jumpButtonReleased)
     {
         isJumping = true;
         jumpStartTime = currentTime;
-        tRexRow = RunnerGameConfig::JUMP_ROW; // Llama moves to the top row when starting a jump
-        jumpButtonReleased = false;           // Prevent immediate re-triggering
+        llamaRow = RunnerGameConfig::JUMP_ROW; // Renamed from tRexRow
+        jumpButtonReleased = false;
         playJumpSound();
         showJumpFeedback();
     }
 
-    // Handle jump termination:
-    // - Force end jump after maximum duration (JUMP_DURATION)
-    // - Or if the button is released early (after a minimum jump time)
     if (isJumping)
     {
         if (currentTime - jumpStartTime >= RunnerGameConfig::JUMP_DURATION)
         {
-            // Maximum jump duration reached; force Llama to fall
             isJumping = false;
-            tRexRow = RunnerGameConfig::GROUND_ROW;
+            llamaRow = RunnerGameConfig::GROUND_ROW; // Renamed from tRexRow
         }
         else if (!jumpPressed && (currentTime - jumpStartTime >= RunnerGameConfig::MIN_JUMP_DURATION))
         {
-            // Button released after a minimal jump duration; end jump early
             isJumping = false;
-            tRexRow = RunnerGameConfig::GROUND_ROW;
+            llamaRow = RunnerGameConfig::GROUND_ROW; // Renamed from tRexRow
         }
+    }
+}
+
+void RunnerGame::updateAnimationState(unsigned long currentTime)
+{
+    // Update animation state at fixed intervals
+    if (currentTime - lastAnimationTime >= RunnerGameConfig::ANIMATION_INTERVAL)
+    {
+        lastAnimationTime = currentTime;
+
+        // Cycle through animation states (0, 1, 2)
+        animationState = (animationState + 1) % 3;
     }
 }
 
 bool RunnerGame::updateGameObjects()
 {
-    // Move the cactus leftward
     cactusPos--;
 
-    // If the cactus goes off-screen, reset its position and increment the score
     if (cactusPos < 0)
     {
         cactusPos = RunnerGameConfig::INITIAL_CACTUS_POS;
         score++;
-        // Update score on Whadda display
         updateScoreDisplay();
         playScoreSound();
         showScoreFeedback();
     }
 
-    // Collision detection: if the cactus reaches column 0 and Llama is on the ground
-    if (cactusPos == 0 && tRexRow == RunnerGameConfig::GROUND_ROW)
+    if (cactusPos == 0 && llamaRow == RunnerGameConfig::GROUND_ROW) // Renamed from tRexRow
     {
-        return true; // Collision detected
+        return true;
     }
 
-    return false; // No collision
+    return false;
 }
 
 void RunnerGame::drawGameGraphics()
 {
-    // Redraw game graphics on the LCD:
     lcd.clear();
 
-    // Draw Llama using its custom icon
-    lcd.setCursor(0, tRexRow);
-    lcd.write(RunnerGameConfig::T_REX_CHAR_ID); // Use the character ID directly
-
-    // Draw cactus on the bottom row using its custom icon
     lcd.setCursor(cactusPos, RunnerGameConfig::GROUND_ROW);
-    lcd.write(RunnerGameConfig::CACTUS1_CHAR_ID); // Use the character ID directly
+    lcd.write(byte(6));
+    lcd.setCursor(cactusPos + 1, RunnerGameConfig::GROUND_ROW);
+    lcd.write(byte(7));
+
+    if (isJumping)
+    {
+        lcd.setCursor(0, llamaRow); // Renamed from tRexRow
+        lcd.write(byte(0));
+        lcd.setCursor(1, llamaRow); // Renamed from tRexRow
+        lcd.write(byte(1));
+    }
+    else
+    {
+        lcd.setCursor(0, llamaRow); // Renamed from tRexRow
+        if (animationState == 0)
+        {
+            lcd.write(byte(0));
+            lcd.setCursor(1, llamaRow); // Renamed from tRexRow
+            lcd.write(byte(1));
+        }
+        else if (animationState == 1)
+        {
+            lcd.write(byte(2));
+            lcd.setCursor(1, llamaRow); // Renamed from tRexRow
+            lcd.write(byte(3));
+        }
+        else
+        {
+            lcd.write(byte(4));
+            lcd.setCursor(1, llamaRow); // Renamed from tRexRow
+            lcd.write(byte(5));
+        }
+    }
 }
 
 void RunnerGame::updateScoreDisplay()

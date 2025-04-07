@@ -15,12 +15,18 @@ namespace RunnerGameConfig
     // Display settings
     constexpr int LCD_COLS = 16;
     constexpr int LCD_ROWS = 2;
-    constexpr int T_REX_CHAR_ID = 0;
-    constexpr int CACTUS1_CHAR_ID = 1;
-    constexpr int CACTUS2_CHAR_ID = 2;
+
+    // Custom character IDs
+    constexpr int LLAMA_STANDING_PART1_ID = 0;
+    constexpr int LLAMA_STANDING_PART2_ID = 1;
+    constexpr int LLAMA_RIGHT_FOOT_PART1_ID = 2;
+    constexpr int LLAMA_RIGHT_FOOT_PART2_ID = 3;
+    constexpr int LLAMA_LEFT_FOOT_PART1_ID = 4;
+    constexpr int LLAMA_LEFT_FOOT_PART2_ID = 5;
+    constexpr int CACTUS_PART1_ID = 6;
+    constexpr int CACTUS_PART2_ID = 7;
 
     // Game mechanics
-    constexpr int JUMP_PIN = 4;
     constexpr int INITIAL_CACTUS_POS = 15;
     constexpr int GROUND_ROW = 1;
     constexpr int JUMP_ROW = 0;
@@ -35,15 +41,16 @@ namespace RunnerGameConfig
 
     // Timing constants (ms)
     constexpr unsigned long JUMP_DURATION = 600;
-    constexpr unsigned long WIN_TIME = 60000;     // 1 minute
-    constexpr unsigned long RESTART_DELAY = 2000; // 2 seconds delay before auto-restart
+    constexpr unsigned long WIN_TIME = 30000;         // 30 seconds (changed from 10 seconds)
+    constexpr unsigned long RESTART_DELAY = 2000;     // 2 seconds delay before auto-restart
+    constexpr unsigned long ANIMATION_INTERVAL = 300; // Animation update interval
 
     // Game messages
     constexpr const char *WELCOME_MSG_LINE1 = "Runner Game";
     constexpr const char *WELCOME_MSG_LINE2 = "Press jump btn";
     constexpr const char *GAME_OVER_MSG = "GAME OVER!";
     constexpr const char *WIN_MSG_LINE1 = "YOU WIN!";
-    constexpr const char *WIN_MSG_LINE2 = "Survived 1 min";
+    constexpr const char *WIN_MSG_LINE2 = "Survived 30 sec";
 
     // Sound effects
     constexpr int JUMP_SOUND_FREQ = 800;
@@ -90,7 +97,7 @@ enum class RunnerGameState
  * - Playing: The game is running.
  * - Game Over: The game has ended; waiting for restart.
  *
- * Winning condition: Survive for 1 minute.
+ * Winning condition: Survive for 30 seconds.
  */
 class RunnerGame : public BaseGame
 {
@@ -113,7 +120,7 @@ private:
     unsigned long lastUpdateTime;
     unsigned long gameStartTime;
     int cactusPos;
-    int tRexRow;
+    int llamaRow;
     bool isJumping;
     unsigned long jumpStartTime;
     bool jumpButtonReleased;
@@ -122,6 +129,8 @@ private:
     unsigned long gameInterval;          // Current game speed interval
     unsigned long lastSpeedIncreaseTime; // Time of last speed increase
     unsigned long gameOverTime;          // Time when game over occurred
+    int animationState;                  // Current animation state (0=standing, 1=right foot, 2=left foot)
+    unsigned long lastAnimationTime;     // Time of last animation update
 
     /**
      * @brief Resets game variables and starts a new game.
@@ -166,6 +175,12 @@ private:
      * @param jumpPressed Whether the jump button is pressed.
      */
     void updateJumpState(unsigned long currentTime, bool jumpPressed);
+
+    /**
+     * @brief Updates the animation state for the llama character.
+     * @param currentTime Current time in milliseconds.
+     */
+    void updateAnimationState(unsigned long currentTime);
 
     /**
      * @brief Updates the game objects (cactus position, collision detection).
