@@ -1,17 +1,5 @@
 #include "RunnerGame.h"
-#include <LiquidCrystal_I2C.h>
-#include "Buzzer.h"
-#include "RGBLed.h"
-#include "Whadda.h"
-#include "Button.h"
-
-// External hardware instances
-extern LiquidCrystal_I2C lcd;
-extern RGBLed rgbLed;
-extern Buzzer buzzer;
-extern Whadda whadda;
-extern Button jumpButton;
-extern bool showTimer;
+#include "Globals.h"
 
 // -------------------------------------------------------------------
 // Custom Icons for Llama and Cactus
@@ -382,7 +370,7 @@ bool RunnerGame::run()
     unsigned long currentTime = millis();
 
     // Update button state
-    bool jumpPressed = jumpButton.read();
+    bool jumpPressed = button.read();
 
     // Update jump button release state: only allow a new jump after the button is released.
     if (!jumpPressed)

@@ -1,19 +1,8 @@
-#include <Arduino.h>
-#include <LiquidCrystal_I2C.h>
-#include "Buzzer.h"
-#include "RGBLed.h"
-#include "Whadda.h"
-#include "Game2.h"
+#include "EscapeVelocity.h"
+#include "Globals.h"
 
 // TODO: comments
 // TODO: more creativity
-
-// External hardware interfaces
-extern LiquidCrystal_I2C lcd;
-extern RGBLed rgbLed;
-extern Buzzer buzzer;
-extern Whadda whadda;
-extern bool showTimer;
 
 EscapeVelocity::EscapeVelocity() : state(EscVelocityState::Init),
                                    currentGate(1),

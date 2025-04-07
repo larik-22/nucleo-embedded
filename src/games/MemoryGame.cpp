@@ -1,19 +1,9 @@
-#include <Arduino.h>
-#include <LiquidCrystal_I2C.h>
-#include "Buzzer.h"
-#include "RGBLed.h"
-#include "Whadda.h"
-#include "Game1.h"
+#include "MemoryGame.h"
+#include "Globals.h"
 
 // TODO: button class usage
 // TODO: comments
 // TODO: fix pot value being too close every time
-
-// External hardware references (defined elsewhere)
-extern Buzzer buzzer;
-extern RGBLed rgbLed;
-extern Whadda whadda;
-extern LiquidCrystal_I2C lcd;
 
 //
 // Constructor and Initialization

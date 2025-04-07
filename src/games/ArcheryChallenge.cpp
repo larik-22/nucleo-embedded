@@ -1,22 +1,9 @@
-#include <Arduino.h>
-#include <LiquidCrystal_I2C.h>
-#include "Buzzer.h"
-#include "RGBLed.h"
-#include "Whadda.h"
-#include "Button.h"
-#include "Game3.h"
+#include "Globals.h"
+#include "ArcheryChallenge.h"
 
 // TODO: Correct button class usage instead of pin
 // TODO: Remove disappear target effect (useless) –≥ and add another effect instead
 // TODO: Split more into functions
-
-// External hardware interfaces (declared in main.cpp)
-extern LiquidCrystal_I2C lcd;
-extern RGBLed rgbLed;
-extern Buzzer buzzer;
-extern Whadda whadda;
-extern Button jumpButton;
-extern bool showTimer;
 
 ArcheryChallenge::ArcheryChallenge()
     : state(ArcheryState::Init),
