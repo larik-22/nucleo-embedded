@@ -2,19 +2,6 @@
 #include "Globals.h"
 
 /**
- * @file EscapeVelocity.cpp
- * @brief Implementation of the Escape Velocity game
- * 
- * This file contains the implementation of the Escape Velocity game, where players
- * must control a potentiometer to keep a value within a specific range for a set
- * duration to pass through gates. The game gets progressively more difficult as
- * the player advances.
- */
-
-// TODO: comments
-// TODO: more creativity
-
-/**
  * @brief Constructor for the Escape Velocity game
  * 
  * Initializes all game variables to their default values.

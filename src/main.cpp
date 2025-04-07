@@ -188,15 +188,14 @@ void runChallenges()
   {
   case 1:
   {
-    //static RunnerGame runnerGame;
-    //challengeFinished = runnerGame.run();
-
+    static RunnerGame runnerGame;
+    challengeFinished = runnerGame.run();
      //static ArcheryChallenge archeryChallenge;
-     //challengeFinished = archeryChallenge.run();
-         static MemoryGame memoryGame;
-         challengeFinished = memoryGame.run();
-      //static EscapeVelocity escapeVelocity;
-      //challengeFinished = escapeVelocity.run();
+     //challengeFinished = archeryChallenge.run()
+     //static MemoryGame memoryGame;
+     //challengeFinished = memoryGame.run();
+     //static EscapeVelocity escapeVelocity;
+     //challengeFinished = escapeVelocity.run();
     if (challengeFinished)
     {
       currentChallenge++;

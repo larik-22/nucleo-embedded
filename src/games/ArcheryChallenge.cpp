@@ -1,16 +1,3 @@
-/**
- * @file ArcheryChallenge.cpp
- * @brief Implementation of the Archery Challenge game
- * 
- * This file contains the implementation of the Archery Challenge game.
- * The player must hit targets with arrows while dealing with magical effects
- * that make the challenge more difficult. The game consists of three rounds,
- * each with increasing difficulty.
- * 
- * @author Your Name
- * @date 2023
- */
-
 #include "Globals.h"
 #include "ArcheryChallenge.h"
 

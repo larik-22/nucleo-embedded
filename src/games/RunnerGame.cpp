@@ -5,19 +5,74 @@
 // Custom Icons for Llama and Cactus
 // -------------------------------------------------------------------
 
+/**
+ * @brief Bitmap for the standing llama character (part 1)
+ * 
+ * Custom character bitmap for the first part of the standing llama.
+ * Used when the llama is not moving or during jumps.
+ */
 static byte llamaStandingPart1[8] = {B00000, B00000, B00110, B00110, B00111, B00111, B00011, B00011};
+
+/**
+ * @brief Bitmap for the standing llama character (part 2)
+ * 
+ * Custom character bitmap for the second part of the standing llama.
+ * Used when the llama is not moving or during jumps.
+ */
 static byte llamaStandingPart2[8] = {B00111, B00111, B00111, B00100, B11100, B11100, B11000, B11000};
 
+/**
+ * @brief Bitmap for the llama with right foot forward (part 1)
+ * 
+ * Custom character bitmap for the first part of the llama with right foot forward.
+ * Used in the running animation sequence.
+ */
 static byte llamaRightFootPart1[8] = {B00000, B00000, B00110, B00110, B00111, B00111, B00011, B00011};
+
+/**
+ * @brief Bitmap for the llama with right foot forward (part 2)
+ * 
+ * Custom character bitmap for the second part of the llama with right foot forward.
+ * Used in the running animation sequence.
+ */
 static byte llamaRightFootPart2[8] = {B00111, B00111, B00111, B00100, B11100, B11100, B11000, B00000};
 
+/**
+ * @brief Bitmap for the llama with left foot forward (part 1)
+ * 
+ * Custom character bitmap for the first part of the llama with left foot forward.
+ * Used in the running animation sequence.
+ */
 static byte llamaLeftFootPart1[8] = {B00000, B00000, B00110, B00110, B00111, B00111, B00011, B00000};
+
+/**
+ * @brief Bitmap for the llama with left foot forward (part 2)
+ * 
+ * Custom character bitmap for the second part of the llama with left foot forward.
+ * Used in the running animation sequence.
+ */
 static byte llamaLeftFootPart2[8] = {B00111, B00111, B00111, B00100, B11100, B11100, B11000, B11000};
 
-// Cactus (two parts)
+/**
+ * @brief Bitmap for the cactus obstacle (part 1)
+ * 
+ * Custom character bitmap for the first part of the cactus obstacle.
+ */
 static byte cactusPart1[8] = {B00000, B00100, B00100, B10100, B10100, B11100, B00100, B00100};
+
+/**
+ * @brief Bitmap for the cactus obstacle (part 2)
+ * 
+ * Custom character bitmap for the second part of the cactus obstacle.
+ */
 static byte cactusPart2[8] = {B00100, B00101, B00101, B10101, B11111, B00100, B00100, B00100};
 
+/**
+ * @brief Constructor for RunnerGame
+ * 
+ * Initializes all member variables to their default values.
+ * The game starts in the Idle state with the llama at ground level.
+ */
 RunnerGame::RunnerGame()
     : currentState(RunnerGameState::Idle),
       lastUpdateTime(0),
@@ -38,6 +93,12 @@ RunnerGame::RunnerGame()
 {
 }
 
+/**
+ * @brief Initializes the game
+ * 
+ * Sets up the LCD display, creates custom characters, and displays the welcome screen.
+ * This method is called once at the beginning of the game.
+ */
 void RunnerGame::init()
 {
     lcd.init();
@@ -66,6 +127,11 @@ void RunnerGame::init()
     currentState = RunnerGameState::Idle;
 }
 
+/**
+ * @brief Starts a new game
+ * 
+ * Resets all game variables, positions the llama and cactus, and transitions to the Playing state.
+ */
 void RunnerGame::startGame()
 {
     // Clear the entire screen at the start of a new game
@@ -86,6 +152,11 @@ void RunnerGame::startGame()
     updateScoreDisplay();
 }
 
+/**
+ * @brief Displays the game over screen
+ * 
+ * Shows the game over message, plays the collision sound, and transitions to the GameOver state.
+ */
 void RunnerGame::showGameOver()
 {
     lcd.clear();
@@ -97,6 +168,11 @@ void RunnerGame::showGameOver()
     showCollisionFeedback();
 }
 
+/**
+ * @brief Displays the win screen
+ * 
+ * Shows the winning message, plays the win melody, and transitions to the Winning state.
+ */
 void RunnerGame::showWinScreen()
 {
     // Display the winning message
@@ -118,6 +194,14 @@ void RunnerGame::showWinScreen()
     winStateStartTime = millis();
 }
 
+/**
+ * @brief Handles the idle state logic
+ * 
+ * Waits for the player to press the jump button to start the game.
+ * 
+ * @param jumpPressed Whether the jump button is currently pressed
+ * @return false (game is not complete)
+ */
 bool RunnerGame::handleIdleState(bool jumpPressed)
 {
     // Wait for jump button press to start the game
@@ -128,6 +212,15 @@ bool RunnerGame::handleIdleState(bool jumpPressed)
     return false; // Game is not complete yet, waiting for player to start
 }
 
+/**
+ * @brief Handles the playing state logic
+ * 
+ * Updates the game state, checks for collisions, and draws the game graphics.
+ * 
+ * @param currentTime Current time in milliseconds
+ * @param jumpPressed Whether the jump button is currently pressed
+ * @return false (game is not complete)
+ */
 bool RunnerGame::handlePlayingState(unsigned long currentTime, bool jumpPressed)
 {
     // Winning condition: survive for the specified time
@@ -162,6 +255,14 @@ bool RunnerGame::handlePlayingState(unsigned long currentTime, bool jumpPressed)
     return false; // Game is not complete yet
 }
 
+/**
+ * @brief Handles the game over state logic
+ * 
+ * Waits for a specified delay before automatically restarting the game.
+ * 
+ * @param jumpPressed Whether the jump button is currently pressed (unused in this state)
+ * @return false (game is not complete)
+ */
 bool RunnerGame::handleGameOverState(bool jumpPressed)
 {
     unsigned long currentTime = millis();
@@ -175,6 +276,14 @@ bool RunnerGame::handleGameOverState(bool jumpPressed)
     return false; // Game is not complete yet, player can restart
 }
 
+/**
+ * @brief Handles the winning state logic
+ * 
+ * Displays the winning animation and transitions back to the idle state after a delay.
+ * 
+ * @param currentTime Current time in milliseconds
+ * @return true when the winning state is complete, false otherwise
+ */
 bool RunnerGame::handleWinningState(unsigned long currentTime)
 {
     // Update RGB LED if it's blinking
@@ -197,6 +306,14 @@ bool RunnerGame::handleWinningState(unsigned long currentTime)
     return false;
 }
 
+/**
+ * @brief Updates the jump state based on button input
+ * 
+ * Handles jump initiation and termination based on button presses and timing.
+ * 
+ * @param currentTime Current time in milliseconds
+ * @param jumpPressed Whether the jump button is currently pressed
+ */
 void RunnerGame::updateJumpState(unsigned long currentTime, bool jumpPressed)
 {
     // Initiate jump only if not already jumping and the button has been released
@@ -230,6 +347,13 @@ void RunnerGame::updateJumpState(unsigned long currentTime, bool jumpPressed)
     }
 }
 
+/**
+ * @brief Updates the game objects and checks for collisions
+ * 
+ * Moves the cactus, updates the animation state, and checks for collisions.
+ * 
+ * @return true if a collision is detected, false otherwise
+ */
 bool RunnerGame::updateGameObjects()
 {
     unsigned long currentTime = millis();
@@ -262,6 +386,11 @@ bool RunnerGame::updateGameObjects()
     return false; // No collision
 }
 
+/**
+ * @brief Draws the game graphics on the LCD
+ * 
+ * Renders the llama character and cactus obstacle based on their current positions and states.
+ */
 void RunnerGame::drawGameGraphics()
 {
     lcd.clear();
@@ -302,6 +431,11 @@ void RunnerGame::drawGameGraphics()
     }
 }
 
+/**
+ * @brief Updates the score display on the Whadda module
+ * 
+ * Formats and displays the current score.
+ */
 void RunnerGame::updateScoreDisplay()
 {
     // Format the score with leading zeros for better display
@@ -310,21 +444,41 @@ void RunnerGame::updateScoreDisplay()
     whadda.displayText(scoreStr);
 }
 
+/**
+ * @brief Plays the jump sound effect
+ * 
+ * Plays a tone when the llama jumps.
+ */
 void RunnerGame::playJumpSound()
 {
     buzzer.playTone(RunnerGameConfig::JUMP_SOUND_FREQ, RunnerGameConfig::JUMP_SOUND_DURATION);
 }
 
+/**
+ * @brief Plays the collision sound effect
+ * 
+ * Plays a tone when the llama collides with a cactus.
+ */
 void RunnerGame::playCollisionSound()
 {
     buzzer.playTone(RunnerGameConfig::COLLISION_SOUND_FREQ, RunnerGameConfig::COLLISION_SOUND_DURATION);
 }
 
+/**
+ * @brief Plays the score sound effect
+ * 
+ * Plays a tone when the player successfully passes an obstacle.
+ */
 void RunnerGame::playScoreSound()
 {
     buzzer.playTone(RunnerGameConfig::SCORE_SOUND_FREQ, RunnerGameConfig::SCORE_SOUND_DURATION);
 }
 
+/**
+ * @brief Shows visual feedback for jumping
+ * 
+ * Sets the RGB LED to the jump color for a short duration.
+ */
 void RunnerGame::showJumpFeedback()
 {
     rgbLed.setColor(RunnerGameConfig::JUMP_LED_RED, RunnerGameConfig::JUMP_LED_GREEN, RunnerGameConfig::JUMP_LED_BLUE);
@@ -332,6 +486,11 @@ void RunnerGame::showJumpFeedback()
     rgbLed.off();
 }
 
+/**
+ * @brief Shows visual feedback for collision
+ * 
+ * Sets the RGB LED to the collision color for a short duration.
+ */
 void RunnerGame::showCollisionFeedback()
 {
     rgbLed.setColor(RunnerGameConfig::COLLISION_LED_RED, RunnerGameConfig::COLLISION_LED_GREEN, RunnerGameConfig::COLLISION_LED_BLUE);
@@ -339,6 +498,11 @@ void RunnerGame::showCollisionFeedback()
     rgbLed.off();
 }
 
+/**
+ * @brief Shows visual feedback for scoring
+ * 
+ * Sets the RGB LED to the score color for a short duration.
+ */
 void RunnerGame::showScoreFeedback()
 {
     rgbLed.setColor(RunnerGameConfig::SCORE_LED_RED, RunnerGameConfig::SCORE_LED_GREEN, RunnerGameConfig::SCORE_LED_BLUE);
@@ -346,6 +510,13 @@ void RunnerGame::showScoreFeedback()
     rgbLed.off();
 }
 
+/**
+ * @brief Updates the game speed based on elapsed time
+ * 
+ * Gradually increases the game speed to make it more challenging.
+ * 
+ * @param currentTime Current time in milliseconds
+ */
 void RunnerGame::updateGameSpeed(unsigned long currentTime)
 {
     // Check if it's time to increase the game speed
@@ -365,6 +536,14 @@ void RunnerGame::updateGameSpeed(unsigned long currentTime)
     }
 }
 
+/**
+ * @brief Main game loop method
+ * 
+ * This method is called repeatedly by the game engine.
+ * It handles the game state machine, user input, and visual feedback.
+ * 
+ * @return true when the game is complete, false otherwise
+ */
 bool RunnerGame::run()
 {
     unsigned long currentTime = millis();
