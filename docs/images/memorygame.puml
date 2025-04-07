@@ -1,0 +1,49 @@
+@startuml MemoryGame Activity Diagram
+
+|Game Engine|
+start
+:Start Game;
+
+|MemoryGame|
+:Initialize Game;
+:Display Welcome Message;
+
+|Start Animation|
+:Blink All LEDs;
+:Play Start Sound;
+
+|Game Loop|
+repeat
+  :Generate New Sequence;
+  :Display Sequence to Player;
+  
+  |Player Input|
+  repeat
+    :Wait for Player Input;
+    if (Input Matches Sequence?) then (yes)
+      :Provide Visual/Audio Feedback;
+      if (Sequence Complete?) then (yes)
+        :Advance to Next Level;
+        if (Max Level Reached?) then (yes)
+          :Display Success Message;
+          :Play Victory Sound;
+          break
+        else (no)
+          :Increase Sequence Length;
+        endif
+      else (no)
+        :Continue Sequence;
+      endif
+    else (no)
+      :Display Error Message;
+      :Play Error Sound;
+      :Reset to Current Level;
+    endif
+  repeat while (Game Not Complete?) is (yes)
+  ->no;
+  
+  :Display Winning effect;
+  :Advance to next challenge;
+stop
+
+@enduml 

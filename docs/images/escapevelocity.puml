@@ -1,0 +1,59 @@
+@startuml EscapeVelocity Activity Diagram
+
+|Game Engine|
+start
+:Start Game;
+
+|EscapeVelocity|
+:Initialize Game;
+:Display Welcome Message;
+:Set Initial Lives;
+
+|Game Loop|
+repeat
+  :Generate Velocity Range for Current Gate;
+  :Display Gate Information;
+  
+  |Gate Attempt|
+  :Read Potentiometer Value;
+  :Update Display with Current Value;
+  
+  if (Value Within Range?) then (yes)
+    :Provide Visual/Audio Feedback (Green);
+    if (Maintained in Range Long Enough?) then (yes)
+      :Gate Success;
+      :Play Success Sound;
+      :Advance to Next Gate;
+    else (no)
+      :Continue Monitoring;
+    endif
+  else (no)
+    :Provide Visual/Audio Feedback (Red);
+    :Reset In-Range Timer;
+  endif
+  
+  if (Gate Time Expired?) then (yes)
+    :Gate Failed;
+    :Lose a Life;
+    if (Lives Remaining?) then (yes)
+      :Display Failure Message;
+      :Play Failure Sound;
+      :Generate New Gate;
+    else (no)
+      :Display "Out of Lives" Message;
+      :Play Restart Effect;
+      :Reset Game;
+    endif
+  endif
+  
+  if (All Gates Completed?) then (yes)
+    :Display Victory Message;
+    :Play Victory Sound;
+    stop
+  else (no)
+    :Continue to Next Gate;
+  endif
+repeat while (Game Not Complete?) is (yes)
+->no;
+
+@enduml

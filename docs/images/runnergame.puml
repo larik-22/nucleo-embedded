@@ -1,0 +1,54 @@
+@startuml RunnerGame Activity Diagram
+
+|Game Initialization|
+start
+:Create custom characters;
+:Display welcome screen;
+:Set game state to Idle;
+
+|Idle State|
+:Wait for player to start game;
+
+|Game Start|
+:Clear screen;
+:Reset game variables;
+:Position character and cactus;
+:Set game state to Playing;
+
+|Game Loop|
+while (Game is Running?) is (yes)
+  :Update game speed;
+  
+  if (Has elapsed time for update?) then (yes)
+    :Update cactus position;
+    
+    if (Cactus reached left edge?) then (yes)
+      :Reset cactus position;
+      :Increment score;
+    endif
+    
+    if (Collision detected?) then (yes)
+      :Show game over screen;
+      :Set game state to GameOver;
+    else (no)
+      :Draw game graphics;
+    endif
+  endif
+  
+  if (Has elapsed win time?) then (yes)
+    :Show win screen;
+    :Set game state to Winning;
+  endif
+endwhile (no)
+
+|Game Over State|
+:Wait for restart delay;
+:Return to Game Start;
+
+|Winning State|
+:Display winning animation;
+:Advance to next game;
+
+stop
+
+@enduml
