@@ -15,17 +15,23 @@ namespace RunnerGameConfig
     // Display settings
     constexpr int LCD_COLS = 16;
     constexpr int LCD_ROWS = 2;
-    constexpr int T_REX_CHAR_ID = 0;
-    constexpr int CACTUS1_CHAR_ID = 1;
-    constexpr int CACTUS2_CHAR_ID = 2;
+
+    // Custom character IDs
+    constexpr int LLAMA_STANDING_PART1_ID = 0;
+    constexpr int LLAMA_STANDING_PART2_ID = 1;
+    constexpr int LLAMA_RIGHT_FOOT_PART1_ID = 2;
+    constexpr int LLAMA_RIGHT_FOOT_PART2_ID = 3;
+    constexpr int LLAMA_LEFT_FOOT_PART1_ID = 4;
+    constexpr int LLAMA_LEFT_FOOT_PART2_ID = 5;
+    constexpr int CACTUS_PART1_ID = 6;
+    constexpr int CACTUS_PART2_ID = 7;
 
     // Game mechanics
-    constexpr int JUMP_PIN = 4;
     constexpr int INITIAL_CACTUS_POS = 15;
     constexpr int GROUND_ROW = 1;
     constexpr int JUMP_ROW = 0;
     constexpr int MIN_JUMP_DURATION = 200; // ms
-    constexpr int NUM_CACTUS_TYPES = 2;
+    constexpr int NUM_OBSTACLE_TYPES = 3;  // 0 = bird, 1 = cactus type 1, 2 = cactus type 2
 
     // Speed settings
     constexpr unsigned long INITIAL_GAME_INTERVAL = 200;    // ms
@@ -82,6 +88,18 @@ enum class RunnerGameState
 };
 
 /**
+ * @brief Obstacle types for the Runner Game.
+ *
+ * This enum class defines the different types of obstacles that can appear in the game.
+ */
+enum class ObstacleType
+{
+    Bird,
+    CactusType1,
+    CactusType2
+};
+
+/**
  * @brief Runner Game class.
  *
  * This class implements a simple running game for Arduino using an LCD display for graphics
@@ -113,15 +131,17 @@ private:
     unsigned long lastUpdateTime;
     unsigned long gameStartTime;
     int cactusPos;
-    int tRexRow;
+    int llamaRow;
     bool isJumping;
     unsigned long jumpStartTime;
     bool jumpButtonReleased;
     unsigned long score;
-    int currentCactusType;               // Track which cactus type is currently displayed
+    ObstacleType currentObstacleType;    // Track which obstacle type is currently displayed
     unsigned long gameInterval;          // Current game speed interval
     unsigned long lastSpeedIncreaseTime; // Time of last speed increase
     unsigned long gameOverTime;          // Time when game over occurred
+    int animationState;                  // Current animation state (0=standing, 1=right foot, 2=left foot)
+    unsigned long lastAnimationTime;     // Time of last animation update
 
     /**
      * @brief Resets game variables and starts a new game.
@@ -168,7 +188,7 @@ private:
     void updateJumpState(unsigned long currentTime, bool jumpPressed);
 
     /**
-     * @brief Updates the game objects (cactus position, collision detection).
+     * @brief Updates the game objects (obstacle position, collision detection).
      * @return true if collision detected, false otherwise.
      */
     bool updateGameObjects();
@@ -215,9 +235,20 @@ private:
 
     /**
      * @brief Updates the game speed based on elapsed time.
-     * @param currentTime Current time in milliseconds.
+s     * @param currentTime Current time in milliseconds.
      */
     void updateGameSpeed(unsigned long currentTime);
+
+    /**
+     * @brief Clears the previous positions of game objects.
+     */
+    void clearPreviousPositions();
+
+    /**
+     * @brief Selects a random obstacle type.
+     * @return The selected obstacle type.
+     */
+    ObstacleType selectRandomObstacleType();
 };
 
 #endif
