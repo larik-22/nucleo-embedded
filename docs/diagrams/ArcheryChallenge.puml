@@ -1,0 +1,64 @@
+@startuml ArcheryChallenge Simplified Activity Diagram
+
+|Game Initialization|
+start
+:Initialize game;
+:Display welcome message;
+
+|Game Loop|
+while (Current Round <= Total Rounds?) is (yes)
+  |Round Setup|
+  :Set up round parameters;
+  :Select magical effect;
+  :Display round info;
+  
+  |Round Attempt|
+  while (Round not complete?) is (yes)
+    :Apply magical effects;
+    
+    if (Button pressed?) then (yes)
+      :Fire arrow;
+      :Check for hit;
+      
+      if (Target hit?) then (yes)
+        if (Shield active?) then (yes)
+          :Apply shield effect;
+          :Decrease arrow count;
+        else (no)
+          :Set round result to success;
+        endif
+      else (no)
+        if (Arrows remaining?) then (yes)
+          if (Shield active?) then (yes)
+            :Show shield effect;
+          elseif (Shifting Winds?) then (yes) 
+            :Show shifting winds effect;
+          else (Target was invisible?) 
+            :Don't show hint;
+          endif
+          :Decrease arrow count;
+          :Display miss feedback;
+        else (no)
+          :Set round result to failure;
+        endif
+      endif
+      :End round;
+    endif
+  endwhile (no)
+  
+  |Round Processing|
+  if (Round successful?) then (yes)
+    :Display success feedback;
+    :Advance to next round;
+  else (no)
+    :Display failure message;
+    :Restart game;
+  endif
+endwhile (no)
+
+|Game Completion|
+:Display completion message;
+:Play win melody;
+stop
+
+@enduml 
