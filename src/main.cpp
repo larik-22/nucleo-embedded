@@ -208,8 +208,6 @@ void runChallenges()
 
   case 2:
   {
-    // static EscapeVelocity escapeVelocity;
-    // challengeFinished = escapeVelocity.run();
     static MemoryGame memoryGame;
     challengeFinished = memoryGame.run();
     if (challengeFinished)
@@ -223,14 +221,11 @@ void runChallenges()
 
   case 3:
   {
-    // static ArcheryChallenge archeryChallenge;
-    // challengeFinished = archeryChallenge.run();
     static EscapeVelocity escapeVelocity;
     challengeFinished = escapeVelocity.run();
 
     if (challengeFinished)
     {
-      // Move to final challenge (or end game if none)
       currentChallenge++;
       lcd.clear();
       showTimer = false;
@@ -241,14 +236,28 @@ void runChallenges()
 
   case 4:
   {
-    // todo
-    allChallengesComplete = true;
+    static ArcheryChallenge archeryChallenge;
+    challengeFinished = archeryChallenge.run();
+
+    if (challengeFinished)
+    {
+      allChallengesComplete = true;
+    }
   }
   break;
 
   default:
     // No further challenges
-    // TODO: add reset functionality
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Game Over");
+    lcd.setCursor(0, 1);
+    lcd.print("You Won...");
+    while (1)
+    {
+      rgbLed.setColor(0, 255, 0);
+      rgbLed.blinkCurrentColor(1);
+    }
     break;
   }
 }
@@ -285,6 +294,5 @@ void handleGameOver()
   while (1)
   {
     // Remain in the game-over state
-    // TODO: add reset functionality
   }
 }
