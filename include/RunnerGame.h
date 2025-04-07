@@ -43,7 +43,7 @@ namespace RunnerGameConfig
 
     // Timing constants (ms)
     constexpr unsigned long JUMP_DURATION = 600;
-    constexpr unsigned long WIN_TIME = 4000;           // 4 seconds to win
+    constexpr unsigned long WIN_TIME = 60000; // 1 minute to win
     constexpr unsigned long WIN_STATE_DURATION = 2000; // 2 seconds for winning state
     constexpr unsigned long RESTART_DELAY = 2000;      // 2 seconds delay before auto-restart
 

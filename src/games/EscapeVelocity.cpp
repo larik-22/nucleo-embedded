@@ -261,7 +261,7 @@ bool EscapeVelocity::updateGateAttempt(int gateLevel)
 
     case GateAttemptState::Loop:
     {
-        if (now - gateStart > EscVelocityConfig::GATE_TIME_MS)
+        if (hasElapsed(gateStart, EscVelocityConfig::GATE_TIME_MS))
         {
             // Timeout: gate failed.
             gateResult = false;
@@ -272,7 +272,7 @@ bool EscapeVelocity::updateGateAttempt(int gateLevel)
         updateGateDisplays(gateLevel, potValue);
         if (isPotInRange(potValue, minVel, maxVel))
         {
-            if (now - lastBeep >= EscVelocityConfig::BEEP_INTERVAL)
+            if (hasElapsed(lastBeep, EscVelocityConfig::BEEP_INTERVAL))
             {
                 blinkState = !blinkState;
                 if (blinkState)
@@ -291,7 +291,7 @@ bool EscapeVelocity::updateGateAttempt(int gateLevel)
                 wasOutOfRange = false;
                 inRangeStart = now;
             }
-            if (now - inRangeStart >= EscVelocityConfig::IN_RANGE_MS)
+            if (hasElapsed(inRangeStart, EscVelocityConfig::IN_RANGE_MS))
             {
                 // Maintained in-range long enough: gate passed.
                 gateResult = true;

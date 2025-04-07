@@ -191,17 +191,17 @@ void runChallenges()
     static RunnerGame runnerGame;
     challengeFinished = runnerGame.run();
      //static ArcheryChallenge archeryChallenge;
-     //challengeFinished = archeryChallenge.run()
-     //static MemoryGame memoryGame;
-     //challengeFinished = memoryGame.run();
-     //static EscapeVelocity escapeVelocity;
-     //challengeFinished = escapeVelocity.run();
-    if (challengeFinished)
-    {
-      currentChallenge++;
-      lcd.clear();
-      showTimer = false;
-      lcd.print("Game 2 start");
+    // challengeFinished = archeryChallenge.run();
+     // static MemoryGame memoryGame;
+     // challengeFinished = memoryGame.run();
+     // static EscapeVelocity escapeVelocity;
+     // challengeFinished = escapeVelocity.run();
+     if (challengeFinished)
+     {
+       currentChallenge++;
+       lcd.clear();
+       showTimer = false;
+       lcd.print("Game 2 start");
     }
   }
   break;

@@ -224,7 +224,7 @@ bool RunnerGame::handleIdleState(bool jumpPressed)
 bool RunnerGame::handlePlayingState(unsigned long currentTime, bool jumpPressed)
 {
     // Winning condition: survive for the specified time
-    if (currentTime - gameStartTime >= RunnerGameConfig::WIN_TIME)
+    if (hasElapsed(gameStartTime, RunnerGameConfig::WIN_TIME))
     {
         showWinScreen();
         return false; // Game is not complete yet, we're in the winning state
@@ -237,7 +237,7 @@ bool RunnerGame::handlePlayingState(unsigned long currentTime, bool jumpPressed)
     updateGameSpeed(currentTime);
 
     // Update game objects at fixed intervals
-    if (currentTime - lastUpdateTime >= gameInterval)
+    if (hasElapsed(lastUpdateTime, gameInterval))
     {
         lastUpdateTime = currentTime;
 
@@ -268,7 +268,7 @@ bool RunnerGame::handleGameOverState(bool jumpPressed)
     unsigned long currentTime = millis();
 
     // Auto-restart after the specified delay
-    if (currentTime - gameOverTime >= RunnerGameConfig::RESTART_DELAY)
+    if (hasElapsed(gameOverTime, RunnerGameConfig::RESTART_DELAY))
     {
         startGame();
     }
@@ -290,7 +290,7 @@ bool RunnerGame::handleWinningState(unsigned long currentTime)
     rgbLed.update();
 
     // Check if the winning state duration has elapsed
-    if (currentTime - winStateStartTime >= RunnerGameConfig::WIN_STATE_DURATION)
+    if (hasElapsed(winStateStartTime, RunnerGameConfig::WIN_STATE_DURATION))
     {
         // Turn off the LED
         rgbLed.off();
@@ -332,13 +332,13 @@ void RunnerGame::updateJumpState(unsigned long currentTime, bool jumpPressed)
     // - Or if the button is released early (after a minimum jump time)
     if (isJumping)
     {
-        if (currentTime - jumpStartTime >= RunnerGameConfig::JUMP_DURATION)
+        if (hasElapsed(jumpStartTime, RunnerGameConfig::JUMP_DURATION))
         {
             // Maximum jump duration reached; force Llama to fall
             isJumping = false;
             llamaRow = RunnerGameConfig::GROUND_ROW;
         }
-        else if (!jumpPressed && (currentTime - jumpStartTime >= RunnerGameConfig::MIN_JUMP_DURATION))
+        else if (!jumpPressed && hasElapsed(jumpStartTime, RunnerGameConfig::MIN_JUMP_DURATION))
         {
             // Button released after a minimal jump duration; end jump early
             isJumping = false;
@@ -362,7 +362,7 @@ bool RunnerGame::updateGameObjects()
     cactusPos--;
 
     // Update animation state for running animation
-    if (!isJumping && currentTime - lastAnimationTime >= RunnerGameConfig::ANIMATION_INTERVAL)
+    if (!isJumping && hasElapsed(lastAnimationTime, RunnerGameConfig::ANIMATION_INTERVAL))
     {
         lastAnimationTime = currentTime;
         animationState = (animationState + 1) % RunnerGameConfig::ANIMATION_STATES;
@@ -520,7 +520,7 @@ void RunnerGame::showScoreFeedback()
 void RunnerGame::updateGameSpeed(unsigned long currentTime)
 {
     // Check if it's time to increase the game speed
-    if (currentTime - lastSpeedIncreaseTime >= RunnerGameConfig::SPEED_INCREASE_INTERVAL)
+    if (hasElapsed(lastSpeedIncreaseTime, RunnerGameConfig::SPEED_INCREASE_INTERVAL))
     {
         // Calculate new game interval (faster)
         unsigned long newInterval = gameInterval * RunnerGameConfig::SPEED_INCREASE_FACTOR;

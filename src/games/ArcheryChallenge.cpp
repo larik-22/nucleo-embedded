@@ -74,7 +74,7 @@ bool ArcheryChallenge::run()
 
     case ArcheryState::WaitIntro:
         // Wait for the intro message to display for a fixed duration
-        if (millis() - stateStart >= ArcheryConfig::INTRO_DURATION)
+        if (hasElapsed(stateStart, ArcheryConfig::INTRO_DURATION))
         {
             // After intro, clear screen and enable timer display
             lcd.clear();
@@ -121,7 +121,7 @@ bool ArcheryChallenge::run()
 
     case ArcheryState::RoundSuccess:
         // Wait for a short duration after a successful hit
-        if (millis() - stateStart >= ArcheryConfig::SUCCESS_DISPLAY_DURATION)
+        if (hasElapsed(stateStart, ArcheryConfig::SUCCESS_DISPLAY_DURATION))
         {
             rgbLed.off();
             lcd.clear();
@@ -144,7 +144,7 @@ bool ArcheryChallenge::run()
     case ArcheryState::RestartEffect:
         // Show restart (failure) effect: blink LEDs and display "Out of arrows..."
         runRestartEffect();
-        if (millis() - stateStart >= ArcheryConfig::RESTART_EFFECT_DURATION)
+        if (hasElapsed(stateStart, ArcheryConfig::RESTART_EFFECT_DURATION))
         {
             displayRetryMessage();
             stateStart = now;
@@ -154,7 +154,7 @@ bool ArcheryChallenge::run()
 
     case ArcheryState::Retry:
         // Short pause before restarting the challenge from Round 1
-        if (millis() - stateStart >= ArcheryConfig::RETRY_DURATION)
+        if (hasElapsed(stateStart, ArcheryConfig::RETRY_DURATION))
         {
             // Reset game variables for a fresh start (but skip the intro this time)
             lcd.clear();
@@ -314,7 +314,7 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
 
     case RoundAttemptState::Feedback:
         // ** Pausing to show feedback after a miss **
-        if (millis() - feedbackStart >= ArcheryConfig::FEEDBACK_DURATION)
+        if (hasElapsed(feedbackStart, ArcheryConfig::FEEDBACK_DURATION))
         {
             lcd.clear();
             lcd.setCursor(0, 0);
@@ -646,7 +646,7 @@ void ArcheryChallenge::handleShieldEffect(unsigned long now)
     // Toggle shield on and off based on time intervals
     if (shieldActive)
     {
-        if (now - lastShieldToggle >= ArcheryConfig::SHIELD_UP_MS)
+        if (hasElapsed(lastShieldToggle, ArcheryConfig::SHIELD_UP_MS))
         {
             shieldActive = false;
             lastShieldToggle = now;
@@ -656,7 +656,7 @@ void ArcheryChallenge::handleShieldEffect(unsigned long now)
     }
     else
     {
-        if (now - lastShieldToggle >= ArcheryConfig::SHIELD_DOWN_MS)
+        if (hasElapsed(lastShieldToggle, ArcheryConfig::SHIELD_DOWN_MS))
         {
             shieldActive = true;
             lastShieldToggle = now;
@@ -678,7 +678,7 @@ void ArcheryChallenge::handleDisappearEffect(unsigned long now)
     // Toggle target visibility (LED 7) at set intervals (mostly visible, brief off)
     if (targetVisible)
     {
-        if (now - lastEffectToggle >= ArcheryConfig::TARGET_VISIBLE_MS)
+        if (hasElapsed(lastEffectToggle, ArcheryConfig::TARGET_VISIBLE_MS))
         {
             targetVisible = false;
             lastEffectToggle = now;
@@ -687,7 +687,7 @@ void ArcheryChallenge::handleDisappearEffect(unsigned long now)
     }
     else
     {
-        if (now - lastEffectToggle >= ArcheryConfig::TARGET_INVISIBLE_MS)
+        if (hasElapsed(lastEffectToggle, ArcheryConfig::TARGET_INVISIBLE_MS))
         {
             targetVisible = true;
             lastEffectToggle = now;
