@@ -15,7 +15,7 @@ extern LiquidCrystal_I2C lcd;
 extern RGBLed rgbLed;
 extern Buzzer buzzer;
 extern Whadda whadda;
-extern Button button;
+extern Button jumpButton;
 extern bool showTimer;
 
 ArcheryChallenge::ArcheryChallenge()

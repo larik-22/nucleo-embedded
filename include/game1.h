@@ -58,7 +58,7 @@ namespace Frequencies
  * Each state represents a specific phase of the game, such as initialization,
  * displaying sequences, waiting for user input, and handling errors.
  */
-enum class GameState
+enum class MemoryGameState
 {
     Idle,
     Init,
@@ -117,7 +117,7 @@ public:
 
 private:
     // State variables
-    GameState currentState;
+    MemoryGameState currentState;
     SeqPhase seqPhase;
     StartAnimPhase startAnimPhase;
 
@@ -147,7 +147,7 @@ private:
     int seqDisplayIndex;
 
     // Private helper functions
-    void setState(GameState newState);
+    void setState(MemoryGameState newState);
     void resetSequenceDisplay();
     int getSequenceLengthForLevel(int lvl) const;
     void update7SegmentDisplay() const;

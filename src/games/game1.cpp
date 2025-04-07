@@ -18,7 +18,7 @@ extern LiquidCrystal_I2C lcd;
 //
 // Constructor and Initialization
 //
-MemoryGame::MemoryGame() : currentState(GameState::Idle),
+MemoryGame::MemoryGame() : currentState(MemoryGameState::Idle),
                            seqPhase(SeqPhase::LedOn),
                            startAnimPhase(StartAnimPhase::Idle),
                            challengeInitialized(false),
@@ -53,14 +53,14 @@ void MemoryGame::init()
         challengeInitialized = true;
         challengeComplete = false;
         whadda.clearDisplay();
-        setState(GameState::Init);
+        setState(MemoryGameState::Init);
     }
 }
 
 //
 // State Transition Helper
 //
-void MemoryGame::setState(GameState newState)
+void MemoryGame::setState(MemoryGameState newState)
 {
     currentState = newState;
     lastStateChangeTime = millis();
@@ -197,7 +197,7 @@ void MemoryGame::startGame()
     update7SegmentDisplay();
 
     startAnimPhase = StartAnimPhase::Idle;
-    setState(GameState::StartAnimation);
+    setState(MemoryGameState::StartAnimation);
 }
 
 void MemoryGame::updateSequenceDisplay()
@@ -236,7 +236,7 @@ void MemoryGame::updateSequenceDisplay()
         whadda.clearLEDs();
         userIndex = 0;
         update7SegmentDisplay();
-        setState(GameState::GetUserInput);
+        setState(MemoryGameState::GetUserInput);
     }
 }
 
@@ -271,16 +271,16 @@ void MemoryGame::checkUserInput()
                 userIndex++;
 
                 if (userIndex >= seqLength)
-                    setState(GameState::RoundWinCheck);
+                    setState(MemoryGameState::RoundWinCheck);
                 else
-                    setState(GameState::WaitInputDelay);
+                    setState(MemoryGameState::WaitInputDelay);
             }
             else
             {
                 buzzer.playTone(MemoryGameConfig::ERROR_TONE_FREQUENCY, MemoryGameConfig::ERROR_TONE_DURATION);
                 whadda.displayText("ERROR!");
                 errorDelayStart = now;
-                setState(GameState::Error);
+                setState(MemoryGameState::Error);
             }
             break; // Process one button press at a time
         }
@@ -299,7 +299,7 @@ void MemoryGame::handleRoundWin()
         whadda.displayText("GOOD");
         buzzer.playWinMelody();
         finishDelayStart = millis();
-        setState(GameState::Finish);
+        setState(MemoryGameState::Finish);
     }
     else
     {
@@ -307,7 +307,7 @@ void MemoryGame::handleRoundWin()
         whadda.clearDisplay();
         update7SegmentDisplay();
         levelDelayStart = millis();
-        setState(GameState::WaitNextLevel);
+        setState(MemoryGameState::WaitNextLevel);
     }
 }
 
@@ -323,42 +323,42 @@ bool MemoryGame::run()
 
     switch (currentState)
     {
-    case GameState::Idle:
+    case MemoryGameState::Idle:
         break;
-    case GameState::Init:
+    case MemoryGameState::Init:
         startGame();
         break;
-    case GameState::StartAnimation:
+    case MemoryGameState::StartAnimation:
         if (updateStartAnimation())
         {
             lcd.clear();
             showTimer = true;
             whadda.clearDisplay();
             whadda.clearLEDs();
-            setState(GameState::Pause);
+            setState(MemoryGameState::Pause);
         }
         break;
-    case GameState::Pause:
+    case MemoryGameState::Pause:
         if (hasElapsed(lastStateChangeTime, MemoryGameConfig::STARTING_PAUSE_DELAY))
         {
             resetSequenceDisplay();
-            setState(GameState::DisplaySequence);
+            setState(MemoryGameState::DisplaySequence);
         }
         break;
-    case GameState::DisplaySequence:
+    case MemoryGameState::DisplaySequence:
         updateSequenceDisplay();
         break;
-    case GameState::GetUserInput:
+    case MemoryGameState::GetUserInput:
         checkUserInput();
         break;
-    case GameState::WaitInputDelay:
+    case MemoryGameState::WaitInputDelay:
         if (hasElapsed(inputDelayStart, MemoryGameConfig::INPUT_FEEDBACK_TIME))
         {
             whadda.clearLEDs();
-            setState(GameState::GetUserInput);
+            setState(MemoryGameState::GetUserInput);
         }
         break;
-    case GameState::Error:
+    case MemoryGameState::Error:
         rgbLed.blinkColor(255, 0, 0, 3);
         showTimer = false;
         lcd.setCursor(0, 0);
@@ -371,13 +371,13 @@ bool MemoryGame::run()
             resetSequenceDisplay();
             update7SegmentDisplay();
             rgbLed.off();
-            setState(GameState::DisplaySequence);
+            setState(MemoryGameState::DisplaySequence);
         }
         break;
-    case GameState::RoundWinCheck:
+    case MemoryGameState::RoundWinCheck:
         handleRoundWin();
         break;
-    case GameState::WaitNextLevel:
+    case MemoryGameState::WaitNextLevel:
         if (hasElapsed(inputDelayStart, MemoryGameConfig::INPUT_FEEDBACK_TIME))
             whadda.clearLEDs();
         if (hasElapsed(levelDelayStart, MemoryGameConfig::ROUND_CONFIG_BASE_DELAY))
@@ -386,16 +386,16 @@ bool MemoryGame::run()
             generateSequence(seqLength);
             resetSequenceDisplay();
             update7SegmentDisplay();
-            setState(GameState::DisplaySequence);
+            setState(MemoryGameState::DisplaySequence);
         }
         break;
-    case GameState::Finish:
+    case MemoryGameState::Finish:
         if (hasElapsed(finishDelayStart, MemoryGameConfig::FINISH_DISPLAY_TIME))
         {
             whadda.clearDisplay();
             whadda.clearLEDs();
             challengeComplete = true;
-            setState(GameState::Idle);
+            setState(MemoryGameState::Idle);
         }
         break;
     }
