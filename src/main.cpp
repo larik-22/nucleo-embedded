@@ -191,12 +191,12 @@ void runChallenges()
     //static RunnerGame runnerGame;
     //challengeFinished = runnerGame.run();
 
-     static ArcheryChallenge archeryChallenge;
-     challengeFinished = archeryChallenge.run();
+     //static ArcheryChallenge archeryChallenge;
+     //challengeFinished = archeryChallenge.run();
     //     static MemoryGame memoryGame;
     //     challengeFinished = memoryGame.run();
-    //  static EscapeVelocity escapeVelocity;
-    //  challengeFinished = escapeVelocity.run();
+      static EscapeVelocity escapeVelocity;
+      challengeFinished = escapeVelocity.run();
     if (challengeFinished)
     {
       currentChallenge++;

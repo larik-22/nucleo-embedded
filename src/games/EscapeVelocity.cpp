@@ -1,9 +1,24 @@
 #include "EscapeVelocity.h"
 #include "Globals.h"
 
+/**
+ * @file EscapeVelocity.cpp
+ * @brief Implementation of the Escape Velocity game
+ * 
+ * This file contains the implementation of the Escape Velocity game, where players
+ * must control a potentiometer to keep a value within a specific range for a set
+ * duration to pass through gates. The game gets progressively more difficult as
+ * the player advances.
+ */
+
 // TODO: comments
 // TODO: more creativity
 
+/**
+ * @brief Constructor for the Escape Velocity game
+ * 
+ * Initializes all game variables to their default values.
+ */
 EscapeVelocity::EscapeVelocity() : state(EscVelocityState::Init),
                                    currentGate(1),
                                    lives(EscVelocityConfig::STARTING_LIVES),
@@ -22,41 +37,71 @@ EscapeVelocity::EscapeVelocity() : state(EscVelocityState::Init),
 {
 }
 
+/**
+ * @brief Get the smoothed potentiometer value
+ * 
+ * Reads the potentiometer, applies mapping and smoothing filter.
+ * 
+ * @param gateLevel Current gate level for scaling
+ * @return Smoothed and scaled potentiometer value
+ */
 int EscapeVelocity::getSmoothedPotValue(int gateLevel)
 {
     int raw = analogRead(POT_PIN);
-    int mapped = constrain(map(raw, 300, 1023, 0, 1023), 0, 1023);
+    int mapped = constrain(map(raw, 
+                              EscVelocityConfig::POT_MIN_RAW, 
+                              EscVelocityConfig::POT_MAX_RAW, 
+                              EscVelocityConfig::POT_MIN_MAPPED, 
+                              EscVelocityConfig::POT_MAX_MAPPED), 
+                          EscVelocityConfig::POT_MIN_MAPPED, 
+                          EscVelocityConfig::POT_MAX_MAPPED);
     potFilter = (1.0f - EscVelocityConfig::ALPHA) * potFilter + EscVelocityConfig::ALPHA * (float)mapped;
     return (int)(potFilter * gateLevel);
 }
 
+/**
+ * @brief Initialize the potentiometer filter
+ * 
+ * Sets the initial filter value to the current potentiometer reading.
+ */
 void EscapeVelocity::initPotFilter()
 {
     potFilter = (float)analogRead(POT_PIN);
 }
 
+/**
+ * @brief Generate a velocity range for a gate
+ * 
+ * Creates a range of valid velocities that scales with gate level.
+ * The range becomes more difficult to maintain as the gate level increases.
+ * 
+ * @param gateLevel Current gate level
+ * @param minVel Output parameter for minimum velocity
+ * @param maxVel Output parameter for maximum velocity
+ */
 void EscapeVelocity::generateVelocityRange(int gateLevel, int &minVel, int &maxVel)
 {
     // Compute a non-linear maximum possible value that scales with gate level.
-    long baseMax = 1023L;
+    long baseMax = EscVelocityConfig::BASE_MAX;
     // Adding an extra term to make the maximum grow non-linearly.
     long maxPossible = baseMax * gateLevel + (long)(50 * pow(gateLevel, 1.5));
-    if (maxPossible < 100)
-        maxPossible = 100;
+    if (maxPossible < EscVelocityConfig::POT_MIN_POSSIBLE)
+        maxPossible = EscVelocityConfig::POT_MIN_POSSIBLE;
 
     // Compute a normalized difficulty factor (0 at level 1, 1 at final level)
     float difficultyFactor = (float)gateLevel / (float)EscVelocityConfig::TOTAL_GATES;
 
     // Generate a random offset, but later blend it with the target mid–point.
-    long randomOffset = random(50, maxPossible - 50);
+    long randomOffset = random(EscVelocityConfig::RANDOM_OFFSET_MIN, 
+                              maxPossible - EscVelocityConfig::RANDOM_OFFSET_PADDING);
     long targetMid = maxPossible / 2;
     // Blend the random offset and the mid point based on difficulty: higher levels lean more to the center.
     long center = (long)((1.0f - difficultyFactor) * randomOffset + difficultyFactor * targetMid);
 
     // Compute a dynamic window width:
     // Base window increases with level difficulty using a combination of linear and logarithmic factors.
-    int baseWindow = 30;
-    float windowFactor = 1.0f + difficultyFactor * 2.0f; // More difficult levels have a larger multiplier.
+    int baseWindow = EscVelocityConfig::BASE_WINDOW;
+    float windowFactor = 1.0f + difficultyFactor * EscVelocityConfig::WINDOW_FACTOR_MULTIPLIER; // More difficult levels have a larger multiplier.
     int dynamicWindow = (int)(baseWindow * windowFactor + 10 * log(gateLevel + 1));
     const int halfRange = dynamicWindow;
 
@@ -77,6 +122,14 @@ void EscapeVelocity::generateVelocityRange(int gateLevel, int &minVel, int &maxV
     Serial.println(maxVel);
 }
 
+/**
+ * @brief Update the gate displays
+ * 
+ * Updates the LCD and Whadda displays with current gate information.
+ * 
+ * @param gateLevel Current gate level
+ * @param potValue Current potentiometer value
+ */
 void EscapeVelocity::updateGateDisplays(int gateLevel, int potValue)
 {
     lcd.setCursor(0, 0);
@@ -87,6 +140,14 @@ void EscapeVelocity::updateGateDisplays(int gateLevel, int potValue)
     whadda.displayText(buff);
 }
 
+/**
+ * @brief Check if a potentiometer value is within the valid range
+ * 
+ * @param potValue Current potentiometer value
+ * @param minVel Minimum velocity threshold
+ * @param maxVel Maximum velocity threshold
+ * @return true if the value is within range, false otherwise
+ */
 bool EscapeVelocity::isPotInRange(int potValue, int minVel, int maxVel)
 {
     int minCheck = minVel - EscVelocityConfig::TOLERANCE;
@@ -94,20 +155,95 @@ bool EscapeVelocity::isPotInRange(int potValue, int minVel, int maxVel)
     return (potValue >= minCheck && potValue <= maxCheck);
 }
 
+/**
+ * @brief Set the Whadda lives display
+ * 
+ * Updates the Whadda LED display to show remaining lives.
+ * 
+ * @param lives Number of lives to display
+ */
 void EscapeVelocity::setWhaddaLives(int lives)
 {
-    // Clear all 8 LEDs
-    for (int i = 0; i < 8; i++)
+    // Clear all LEDs
+    for (int i = 0; i < EscVelocityConfig::LED_COUNT; i++)
     {
         whadda.setLED(i, false);
     }
-    // Light up the first 3 LEDs according to lives
-    for (int i = 0; i < lives && i < 3; i++)
+    // Light up the first MAX_LIVES_LED LEDs according to lives
+    for (int i = 0; i < lives && i < EscVelocityConfig::MAX_LIVES_LED; i++)
     {
         whadda.setLED(i, true);
     }
 }
 
+/**
+ * @brief Handle gate success
+ * 
+ * Processes a successful gate attempt and transitions to the next state.
+ * Plays a success sound sequence and updates the game state.
+ */
+void EscapeVelocity::handleGateSuccess()
+{
+    // Gate passed – play a short beep sequence.
+    buzzer.playTone(EscVelocityConfig::SUCCESS_TONE1_FREQ, EscVelocityConfig::SUCCESS_TONE1_DURATION);
+    buzzer.playTone(EscVelocityConfig::SUCCESS_TONE2_FREQ, EscVelocityConfig::SUCCESS_TONE2_DURATION);
+    stateStart = millis();
+    state = EscVelocityState::SuccessBeep;
+}
+
+/**
+ * @brief Handle gate failure
+ * 
+ * Processes a failed gate attempt, decrements lives, and transitions to the next state.
+ * Plays a failure sound and updates the game state based on remaining lives.
+ */
+void EscapeVelocity::handleGateFailure()
+{
+    // Gate failed – lose a life.
+    Serial.println("Gate failed. Current lives: " + String(lives));
+    lives--;
+    setWhaddaLives(lives);
+    buzzer.playTone(EscVelocityConfig::FAILED_TONE_FREQ, EscVelocityConfig::FAILED_TONE_DURATION);
+    if (lives <= 0)
+    {
+        stateStart = millis();
+        state = EscVelocityState::RestartEffect;
+    }
+    else
+    {
+        stateStart = millis();
+        state = EscVelocityState::FailedPause;
+    }
+}
+
+/**
+ * @brief Reset the game
+ * 
+ * Resets the game state after losing all lives.
+ * Resets all game variables to their initial values.
+ */
+void EscapeVelocity::resetGame()
+{
+    lcd.clear();
+    currentGate = 1;
+    lives = EscVelocityConfig::STARTING_LIVES;
+    // Reset the gate attempt state
+    gateState = GateAttemptState::Init;
+    Serial.println("SHOULD SET LIVES TO: " + String(lives));
+    setWhaddaLives(lives);
+    showTimer = true;
+    state = EscVelocityState::GameLoop;
+}
+
+/**
+ * @brief Update the current gate attempt
+ * 
+ * Processes the current gate attempt and updates state accordingly.
+ * Handles the gate attempt state machine and visual feedback.
+ * 
+ * @param gateLevel Current gate level
+ * @return true if the gate attempt is complete, false otherwise
+ */
 bool EscapeVelocity::updateGateAttempt(int gateLevel)
 {
     unsigned long now = millis();
@@ -154,7 +290,7 @@ bool EscapeVelocity::updateGateAttempt(int gateLevel)
                 blinkState = !blinkState;
                 if (blinkState)
                 {
-                    buzzer.playTone(800, 50);
+                    buzzer.playTone(EscVelocityConfig::IN_RANGE_TONE_FREQ, EscVelocityConfig::IN_RANGE_TONE_DURATION);
                     rgbLed.setColor(0, 255, 0); // Green indicates in-range
                 }
                 else
@@ -182,7 +318,7 @@ bool EscapeVelocity::updateGateAttempt(int gateLevel)
             if (!wasOutOfRange)
             {
                 wasOutOfRange = true;
-                buzzer.playTone(300, 200);
+                buzzer.playTone(EscVelocityConfig::OUT_OF_RANGE_TONE_FREQ, EscVelocityConfig::OUT_OF_RANGE_TONE_DURATION);
             }
         }
         return false;
@@ -191,6 +327,12 @@ bool EscapeVelocity::updateGateAttempt(int gateLevel)
     return false; // Fallback (should not occur)
 }
 
+/**
+ * @brief Run the restart effect
+ * 
+ * Displays visual effects when restarting the game after losing all lives.
+ * Blinks LEDs and displays a message on the LCD.
+ */
 void EscapeVelocity::runRestartEffect()
 {
     // Disable timer display during restart effect and blink LEDs
@@ -202,6 +344,12 @@ void EscapeVelocity::runRestartEffect()
     whadda.displayText("Restarting...");
 }
 
+/**
+ * @brief Initialize the game
+ * 
+ * Sets up the game state, displays, and initializes all necessary variables.
+ * Plays the round start melody and sets up the initial game state.
+ */
 void EscapeVelocity::init()
 {
     buzzer.playRoundStartMelody();
@@ -215,6 +363,14 @@ void EscapeVelocity::init()
     gateState = GateAttemptState::Init;
 }
 
+/**
+ * @brief Run the game
+ * 
+ * Main game loop that handles state transitions and game logic.
+ * Implements the game state machine and processes user input.
+ * 
+ * @return true if the game has completed, false otherwise
+ */
 bool EscapeVelocity::run()
 {
     unsigned long now = millis();
@@ -263,29 +419,11 @@ bool EscapeVelocity::run()
     case EscVelocityState::ProcessGate:
         if (gateResult)
         {
-            // Gate passed – play a short beep sequence.
-            buzzer.playTone(1000, 150);
-            buzzer.playTone(1200, 150);
-            stateStart = now;
-            state = EscVelocityState::SuccessBeep;
+            handleGateSuccess();
         }
         else
         {
-            // Gate failed – lose a life.
-            Serial.println("Gate failed. Current lives: " + String(lives));
-            lives--;
-            setWhaddaLives(lives);
-            buzzer.playTone(200, 500);
-            if (lives <= 0)
-            {
-                stateStart = now;
-                state = EscVelocityState::RestartEffect;
-            }
-            else
-            {
-                stateStart = now;
-                state = EscVelocityState::FailedPause;
-            }
+            handleGateFailure();
         }
         break;
 
@@ -321,17 +459,8 @@ bool EscapeVelocity::run()
     case EscVelocityState::Retry:
         if (hasElapsed(stateStart, EscVelocityConfig::RETRY_DURATION))
         {
-            lcd.clear();
-            currentGate = 1;
-            lives = EscVelocityConfig::STARTING_LIVES;
-            // Reset the gate attempt state here as well.
-            gateState = GateAttemptState::Init;
-            Serial.println("SHOULD SET LIVES TO: " + String(lives));
-            setWhaddaLives(lives);
-            showTimer = true;
-            state = EscVelocityState::GameLoop;
+            resetGame();
         }
-
         break;
 
     case EscVelocityState::Finished:

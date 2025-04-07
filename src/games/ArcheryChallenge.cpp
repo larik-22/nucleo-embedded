@@ -29,7 +29,7 @@ void ArcheryChallenge::init()
     resetGameState();
     // Reset displays
     whadda.clearDisplay();
-    turnOffLeds();
+    rgbLed.off();
     // Ensure timer is shown by default during gameplay (will be turned off during special messages)
     showTimer = true;
 }
@@ -104,7 +104,7 @@ bool ArcheryChallenge::run()
         // Wait for a short duration after a successful hit
         if (millis() - stateStart >= ArcheryConfig::SUCCESS_DISPLAY_DURATION)
         {
-            turnOffLeds();
+            rgbLed.off();
             lcd.clear();
             currentRound++;
             showTimer = true;
@@ -142,7 +142,7 @@ bool ArcheryChallenge::run()
             resetGameState();
             // Reset displays
             whadda.clearDisplay();
-            turnOffLeds();
+            rgbLed.off();
             showTimer = true;
             state = ArcheryState::GameLoop;
         }
@@ -209,7 +209,7 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
         }
         
         // If the effect is "Shield", we'll indicate shield status with the RGB LED
-        turnOffLeds();
+        rgbLed.off();
 
         roundState = RoundAttemptState::Playing;
         prevButtonState = currentState;
@@ -303,7 +303,7 @@ bool ArcheryChallenge::updateRoundAttempt(int roundLevel)
             lcd.print(roundLevel);
             lcd.setCursor(0, 1);
             lcd.print("Aim and Fire!");
-            turnOffLeds();
+            rgbLed.off();
             showTimer = true;
             roundState = RoundAttemptState::Playing;
         }
@@ -464,7 +464,7 @@ void ArcheryChallenge::displayFinishedMessage()
     lcd.setCursor(0, 0);
     lcd.print("Challenge Done!");
     buzzer.playWinMelody();
-    turnOffLeds();
+    rgbLed.off();
     Serial.println("Game 3 completed!");
 }
 
@@ -552,7 +552,7 @@ void ArcheryChallenge::handleShieldEffect(unsigned long now)
             shieldActive = false;
             lastShieldToggle = now;
             // Shield goes down: turn off blue indicator
-            turnOffLeds();
+            rgbLed.off();
         }
     }
     else
