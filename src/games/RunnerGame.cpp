@@ -73,7 +73,6 @@ void RunnerGame::startGame()
     gameInterval = RunnerGameConfig::INITIAL_GAME_INTERVAL;
     animationState = 0;
     lastAnimationTime = millis();
-    updateScoreDisplay();
 }
 
 /**
@@ -105,7 +104,6 @@ void RunnerGame::showWinScreen()
     lcd.print(RunnerGameConfig::WIN_MSG_LINE1);
     lcd.setCursor(0, 1);
     lcd.print(RunnerGameConfig::WIN_MSG_LINE2);
-    updateScoreDisplay(); // Final score display
 
     // Start blinking the LED with the win color
     rgbLed.startBlinkColor(RunnerGameConfig::WIN_LED_RED, RunnerGameConfig::WIN_LED_GREEN, RunnerGameConfig::WIN_LED_BLUE, RunnerGameConfig::WIN_BLINK_COUNT);
@@ -296,8 +294,6 @@ bool RunnerGame::updateGameObjects()
     {
         cactusPos = RunnerGameConfig::INITIAL_CACTUS_POS;
         score++;
-        // Update score on Whadda display
-        updateScoreDisplay();
         playScoreSound();
         showScoreFeedback();
     }
@@ -353,19 +349,6 @@ void RunnerGame::drawGameGraphics()
             lcd.write(byte(RunnerGameConfig::LLAMA_LEFT_FOOT_PART2_ID));
         }
     }
-}
-
-/**
- * @brief Updates the score display on the Whadda module
- * 
- * Formats and displays the current score.
- */
-void RunnerGame::updateScoreDisplay()
-{
-    // Format the score with leading zeros for better display
-    char scoreStr[10];
-    snprintf(scoreStr, sizeof(scoreStr), "Score: %lu", score);
-    whadda.displayText(scoreStr);
 }
 
 /**

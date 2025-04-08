@@ -391,6 +391,7 @@ void MemoryGame::handleRoundWin()
     {
         displaySuccessFeedback();
         finishDelayStart = millis();
+        rgbLed.startBlinkColor(0, 255, 0, 3);
         setState(MemoryGameState::Finish);
     }
     else

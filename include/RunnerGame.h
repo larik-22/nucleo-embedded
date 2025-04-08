@@ -106,7 +106,7 @@ namespace RunnerGameConfig
 
     // Timing constants (ms)
     constexpr unsigned long JUMP_DURATION = 600;
-    constexpr unsigned long WIN_TIME = 1000; // 1 minute to win
+    constexpr unsigned long WIN_TIME = 60000; // 1 minute to win
     constexpr unsigned long WIN_STATE_DURATION = 2000; // 2 seconds for winning state
     constexpr unsigned long RESTART_DELAY = 2000;      // 2 seconds delay before auto-restart
 
@@ -278,12 +278,7 @@ private:
      * @brief Draws the game graphics on the LCD.
      */
     void drawGameGraphics();
-
-    /**
-     * @brief Updates the score display.
-     */
-    void updateScoreDisplay();
-
+ 
     /**
      * @brief Provides audio feedback for jumping.
      */
@@ -313,11 +308,6 @@ private:
      * @brief Provides visual feedback for scoring.
      */
     void showScoreFeedback();
-
-    /**
-     * @brief Provides visual feedback for winning the game.
-     */
-    void showWinFeedback();
 
     /**
      * @brief Updates the game speed based on elapsed time.

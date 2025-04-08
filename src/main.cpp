@@ -290,7 +290,7 @@ void handleGameWin()
   buzzer.playWinMelody();
   lcd.clear();
   lcd.print("You Escaped!");
-  buzzer.playImperialMarch(3);
+  buzzer.playImperialMarch(1);
   while (1)
   {
     // Example win effect: set LEDs to green and blink them
