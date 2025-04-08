@@ -39,6 +39,7 @@ void checkGameStart();
 void runChallenges();
 void handleGameOver();
 void handleGameWin();
+void handleChallengeCompletion(int& currentChallenge, int nextGameNumber);
 
 /**
  * @brief Setup function
@@ -184,6 +185,21 @@ bool timeRemaining()
 }
 
 /**
+ * @brief Handles the completion of a challenge
+ * 
+ * @param currentChallenge Reference to the current challenge counter
+ * @param nextGameNumber The number of the next game to display
+ */
+void handleChallengeCompletion(int& currentChallenge, int nextGameNumber) {
+  currentChallenge++;
+  lcd.clear();
+  showTimer = false;
+  lcd.print("Game ");
+  lcd.print(nextGameNumber);
+  lcd.print(" start");
+}
+
+/**
  * @brief Runs challenges sequentially.
  *
  * Uses a static challenge counter to decide which challenge to run.
@@ -208,10 +224,7 @@ void runChallenges()
      // challengeFinished = escapeVelocity.run();
      if (challengeFinished)
      {
-       currentChallenge++;
-       lcd.clear();
-       showTimer = false;
-       lcd.print("Game 2 start");
+      handleChallengeCompletion(currentChallenge, 2);
     }
   }
   break;
@@ -222,10 +235,7 @@ void runChallenges()
     challengeFinished = memoryGame.run();
     if (challengeFinished)
     {
-      currentChallenge++;
-      lcd.clear();
-      showTimer = false;
-      lcd.print("Game 3 start");
+      handleChallengeCompletion(currentChallenge, 3);
     }
   }
   break;
@@ -237,10 +247,7 @@ void runChallenges()
 
     if (challengeFinished)
     {
-      currentChallenge++;
-      lcd.clear();
-      showTimer = false;
-      lcd.print("Game 4 start");
+      handleChallengeCompletion(currentChallenge, 4);
     }
   }
   break;
@@ -283,6 +290,7 @@ void handleGameWin()
   buzzer.playWinMelody();
   lcd.clear();
   lcd.print("You Escaped!");
+  buzzer.playImperialMarch(3);
   while (1)
   {
     // Example win effect: set LEDs to green and blink them
