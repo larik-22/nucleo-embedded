@@ -1,8 +1,8 @@
 # Embedded Programming
 
-In this document, I reflect on the coding process and final assignment. I will present the final wiring used, systems architecture, sequence diagrams, and final thoughts.
+In this document, I will present the final wiring used, systems architecture, sequence diagrams, and final thoughts.
 
-## Wiring Diagram
+## Wiring Diagram and Pins
 
 The following diagram presents the final wiring configuration used in the project. The components used for the games include:
 
@@ -12,6 +12,17 @@ The following diagram presents the final wiring configuration used in the projec
 - Potentiometer
 - TM1638 Led&Key module
 - RGB LED
+
+The pins are defined in `src/Pins.h` file. The following table presents the pins used for each component:
+
+| Component | Pin |
+|-----------|-----|
+| LCD screen | D14, D15|
+| Push button | D4 |
+| Buzzer | D2 |
+| RGB LED | D6, D3, D5 |
+| TM1638 Led&Key module | D8, D9, D10 |
+| Potentiometer | A0 |
 
 ![Wiring Diagram](images/wiring.png)
 
