@@ -66,37 +66,6 @@ void RGBLed::off()
     setColor(0, 0, 0);
 }
 
-/**
- * @brief Gradually changes the current color to the specified target color.
- *
- * @param targetRed   The target red intensity (0-255).
- * @param targetGreen The target green intensity (0-255).
- * @param targetBlue  The target blue intensity (0-255).
- * @param delayMs     The delay (in milliseconds) for each step of the fade.
- */
-void RGBLed::fadeColor(int targetRed, int targetGreen, int targetBlue, int delayMs)
-{
-    const int steps = 255;
-    for (int i = 0; i <= steps; i++)
-    {
-        int newRed = _currentRed + ((targetRed - _currentRed) * i) / steps;
-        int newGreen = _currentGreen + ((targetGreen - _currentGreen) * i) / steps;
-        int newBlue = _currentBlue + ((targetBlue - _currentBlue) * i) / steps;
-
-        setColor(newRed, newGreen, newBlue);
-        delay(delayMs);
-    }
-}
-
-/**
- * @brief Fades from the current color to off.
- *
- * @param delayMs The delay (in milliseconds) for each step of the fade.
- */
-void RGBLed::fadeToOff(int delayMs)
-{
-    fadeColor(0, 0, 0, delayMs);
-}
 
 /**
  * @brief Blinks the current color a specified number of times.

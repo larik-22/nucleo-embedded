@@ -49,23 +49,6 @@ public:
     void off();
 
     /**
-     * @brief Gradually fades the current LED color to the target color.
-     *
-     * @param targetRed   The target red intensity (0-255).
-     * @param targetGreen The target green intensity (0-255).
-     * @param targetBlue  The target blue intensity (0-255).
-     * @param delayMs     Delay in milliseconds between each step of the fade (default: FADE_DELAY).
-     */
-    void fadeColor(int targetRed, int targetGreen, int targetBlue, int delayMs = FADE_DELAY);
-
-    /**
-     * @brief Gradually fades the LED color to off.
-     *
-     * @param delayMs Delay in milliseconds between each step of the fade (default: FADE_DELAY).
-     */
-    void fadeToOff(int delayMs = FADE_DELAY);
-
-    /**
      * @brief Blinks the LED a specified number of times.
      *
      * @param count The number of times to blink the LED.

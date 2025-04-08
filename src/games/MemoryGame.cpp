@@ -225,7 +225,6 @@ void MemoryGame::startGame()
     generateSequence(seqLength);
     resetSequenceDisplay();
     update7SegmentDisplay();
-
     startAnimPhase = StartAnimPhase::Idle;
     setState(MemoryGameState::StartAnimation);
 }
